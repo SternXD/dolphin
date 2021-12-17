@@ -108,11 +108,13 @@ QGroupBox* InfoWidget::CreateGameDetails()
                                              .arg(m_game.GetRevision()));
 
   QString game_id_string = QString::fromStdString(m_game.GetGameID());
+  QString triforce_id_string = QString::fromStdString(m_game.GetTriforceID());
 
   if (const u64 title_id = m_game.GetTitleID())
     game_id_string += QStringLiteral(" (%1)").arg(title_id, 16, 16, QLatin1Char('0'));
 
   QLineEdit* game_id = CreateValueDisplay(game_id_string);
+  QLineEdit* triforce_id = CreateValueDisplay(triforce_id_string);
 
   QLineEdit* country = CreateValueDisplay(DiscIO::GetName(m_game.GetCountry(), true));
 
