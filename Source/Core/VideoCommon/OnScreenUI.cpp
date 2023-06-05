@@ -13,6 +13,11 @@
 #include "Core/Movie.h"
 #include "Core/System.h"
 
+#ifdef WINRT_XBOX
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
+#endif
+
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AbstractPipeline.h"
 #include "VideoCommon/AbstractShader.h"
@@ -56,6 +61,8 @@ bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 
   // Don't create an ini file. TODO: Do we want this in the future?
   ImGui::GetIO().IniFilename = nullptr;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+  ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_HasGamepad;
   SetScale(scale);
 
   PortableVertexDeclaration vdecl = {};
@@ -201,6 +208,29 @@ void OnScreenUI::BeginImGuiFrameUnlocked(u32 width, u32 height)
   io.DisplaySize =
       ImVec2(static_cast<float>(m_backbuffer_width), static_cast<float>(m_backbuffer_height));
   io.DeltaTime = time_diff_secs;
+
+#ifdef WINRT_XBOX
+  // Fallback to a generic profile, which is needed for the frontend.
+  ciface::Core::DeviceQualifier dq;
+  dq.FromString(g_controller_interface.GetDefaultDeviceString());
+  auto device = g_controller_interface.FindDevice(dq);
+
+  const auto WGINPUT = [=](std::string label) -> double {
+    return device->FindInput(label)->GetState() == 1.0 ? 1.0 : 0;
+  };
+
+  if (device)
+  {
+    device->UpdateInput();
+
+    io.NavInputs[ImGuiNavInput_Activate] = WGINPUT("Button A");
+    io.NavInputs[ImGuiNavInput_Cancel] = WGINPUT("Button B");
+    io.NavInputs[ImGuiNavInput_DpadUp] = WGINPUT("Left Y+") + WGINPUT("Pad N");
+    io.NavInputs[ImGuiNavInput_DpadDown] = WGINPUT("Left Y-") + WGINPUT("Pad S");
+    io.NavInputs[ImGuiNavInput_DpadLeft] = WGINPUT("Left X-") + WGINPUT("Pad W");
+    io.NavInputs[ImGuiNavInput_DpadRight] = WGINPUT("Left X+") + WGINPUT("Pad E");
+  }
+#endif
 
   ImGui::NewFrame();
 }

@@ -188,7 +188,13 @@ public:
       AddInput(new Battery(&m_battery_level));
   }
 
-  int GetSortPriority() const override { return -1; }
+  int GetSortPriority() const override {
+#ifdef WINRT_XBOX
+    return 1;
+#else
+    return -1;
+#endif
+  }
 
   const WGI::RawGameController GetRawGameController() const { return m_raw_controller; }
 

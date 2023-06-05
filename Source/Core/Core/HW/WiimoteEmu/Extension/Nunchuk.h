@@ -149,7 +149,7 @@ public:
   };
   static_assert(sizeof(CalibrationData) == 16, "Wrong size");
 
-  Nunchuk();
+  Nunchuk(const unsigned int index);
 
   void BuildDesiredExtensionState(DesiredExtensionState* target_state) override;
   void Update(const DesiredExtensionState& target_state) override;
@@ -191,5 +191,6 @@ private:
   MotionState m_swing_state;
   RotationalState m_tilt_state;
   PositionalState m_shake_state;
+  const unsigned int m_index;
 };
 }  // namespace WiimoteEmu

@@ -43,4 +43,7 @@ struct WindowSystemInfo
 
   // Scale of the render surface. For hidpi systems, this will be >1.
   float render_surface_scale = 1.0f;
+
+  // WinRT
+  u32 render_width, render_height;
 };

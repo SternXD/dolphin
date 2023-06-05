@@ -271,7 +271,7 @@ Wiimote::Wiimote(const unsigned int index) : m_index(index), m_bt_device_index(i
   // Extension
   groups.emplace_back(m_attachments = new ControllerEmu::Attachments(_trans("Extension")));
   m_attachments->AddAttachment(std::make_unique<WiimoteEmu::None>());
-  m_attachments->AddAttachment(std::make_unique<WiimoteEmu::Nunchuk>());
+  m_attachments->AddAttachment(std::make_unique<WiimoteEmu::Nunchuk>(m_index));
   m_attachments->AddAttachment(std::make_unique<WiimoteEmu::Classic>());
   m_attachments->AddAttachment(std::make_unique<WiimoteEmu::Guitar>());
   m_attachments->AddAttachment(std::make_unique<WiimoteEmu::Drums>());
@@ -706,6 +706,7 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 {
   EmulatedController::LoadDefaults(ciface);
 
+
 #ifdef ANDROID
   // Rumble
   m_rumble->SetControlExpression(0, "`Android/0/Device Sensors:Motor 0`");
@@ -735,18 +736,39 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
   m_buttons->SetControlExpression(0, "`Left Click`");
   // B
   m_buttons->SetControlExpression(1, "`Right Click`");
+#elif WINRT_XBOX
+  // If we're running on UWP, we're likely on an Xbox. These defaults work for Xbox One & Series.
+  m_buttons->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Button A`");  // A
+  m_buttons->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Button B`");  // B
 #else
   // A
   m_buttons->SetControlExpression(0, "`Click 0`");
   // B
   m_buttons->SetControlExpression(1, "`Click 1`");
 #endif
+
+#if WINRT_XBOX
+  m_buttons->SetControlExpression(2, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Button X`");
+  m_buttons->SetControlExpression(3, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Button Y`");
+  m_buttons->SetControlExpression(4, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:View`");
+  m_buttons->SetControlExpression(5, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Menu`");
+#else
   m_buttons->SetControlExpression(2, "`1`");     // 1
   m_buttons->SetControlExpression(3, "`2`");     // 2
   m_buttons->SetControlExpression(4, "Q");       // -
   m_buttons->SetControlExpression(5, "E");       // +
+#endif
 
-#ifdef _WIN32
+#if WINRT_XBOX
+  m_buttons->SetControlExpression(6, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Menu & View`");  // Home
+#elif _WIN32
   m_buttons->SetControlExpression(6, "RETURN");  // Home
 #else
   // Home
@@ -761,25 +783,45 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
     m_shake->SetControlExpression(i, "`Click 2`");
 #endif
 
+#if WINRT_XBOX
   // Pointing (IR)
+  m_ir->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                    "/Xbox One Game Controller:Right Y+`");
+  m_ir->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                    "/Xbox One Game Controller:Right Y-`");
+  m_ir->SetControlExpression(2, "`WGInput/" + std::to_string(m_index) +
+                                    "/Xbox One Game Controller:Right X-`");
+  m_ir->SetControlExpression(3, "`WGInput/" + std::to_string(m_index) +
+                                    "/Xbox One Game Controller:Right X+`");
+#else
   m_ir->SetControlExpression(0, "`Cursor Y-`");
   m_ir->SetControlExpression(1, "`Cursor Y+`");
   m_ir->SetControlExpression(2, "`Cursor X-`");
   m_ir->SetControlExpression(3, "`Cursor X+`");
+#endif
 
 // DPad
-#ifdef _WIN32
+#if WINRT_XBOX
+  m_dpad->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                      "/Xbox One Game Controller:Pad N`");  // Up
+  m_dpad->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                      "/Xbox One Game Controller:Pad S`");  // Down
+  m_dpad->SetControlExpression(2, "`WGInput/" + std::to_string(m_index) +
+                                      "/Xbox One Game Controller:Pad W`");  // Left
+  m_dpad->SetControlExpression(3, "`WGInput/" + std::to_string(m_index) +
+                                      "/Xbox One Game Controller:Pad E`");  // Right
+#elif _WIN32
   m_dpad->SetControlExpression(0, "UP");     // Up
   m_dpad->SetControlExpression(1, "DOWN");   // Down
   m_dpad->SetControlExpression(2, "LEFT");   // Left
   m_dpad->SetControlExpression(3, "RIGHT");  // Right
 #elif __APPLE__
-  m_dpad->SetControlExpression(0, "`Up Arrow`");     // Up
+    m_dpad->SetControlExpression(0, "`Up Arrow`");   // Up
   m_dpad->SetControlExpression(1, "`Down Arrow`");   // Down
   m_dpad->SetControlExpression(2, "`Left Arrow`");   // Left
   m_dpad->SetControlExpression(3, "`Right Arrow`");  // Right
 #else
-  m_dpad->SetControlExpression(0, "Up");     // Up
+    m_dpad->SetControlExpression(0, "Up");   // Up
   m_dpad->SetControlExpression(1, "Down");   // Down
   m_dpad->SetControlExpression(2, "Left");   // Left
   m_dpad->SetControlExpression(3, "Right");  // Right
@@ -804,6 +846,11 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
     m_ir_passthrough->SetControlExpression(i * 3 + 1, fmt::format("`IR Object {} Y`", i + 1));
     m_ir_passthrough->SetControlExpression(i * 3 + 2, fmt::format("`IR Object {} Size`", i + 1));
   }
+#endif
+
+#if WINRT_XBOX
+  m_rumble->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                        "/Xbox One Game Controller:Rumble 0`");
 #endif
 
   // Enable Nunchuk:

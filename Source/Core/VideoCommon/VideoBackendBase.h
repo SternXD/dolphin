@@ -75,6 +75,7 @@ public:
 
   // Wrapper function which pushes the event to the GPU thread.
   void DoState(PointerWrap& p);
+  bool Initialized() { return m_initialized;  }
 
 protected:
   // For hardware backends

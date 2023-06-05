@@ -56,8 +56,10 @@ _Pre_satisfies_(EventDataSize >= sizeof(CM_NOTIFY_EVENT_DATA)) static DWORD CALL
       // TODO: we could easily use the message passed alongside this event, which tells
       // whether a device was added or removed, to avoid removing old, still connected, devices
       g_controller_interface.PlatformPopulateDevices([&] {
+#ifndef WINRT_XBOX
         ciface::DInput::PopulateDevices(
             static_cast<ciface::Win32::InputBackend*>(Context)->GetHWND());
+#endif
         ciface::XInput::PopulateDevices();
       });
     }
@@ -65,16 +67,16 @@ _Pre_satisfies_(EventDataSize >= sizeof(CM_NOTIFY_EVENT_DATA)) static DWORD CALL
   return ERROR_SUCCESS;
 }
 
-namespace ciface::Win32
+void ciface::Win32::Init(void* hwnd)
 {
-std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
-{
+#ifndef WINRT_XBOX
   return std::make_unique<InputBackend>(controller_interface);
 }
 
 HWND InputBackend::GetHWND()
 {
   return static_cast<HWND>(GetControllerInterface().GetWindowSystemInfo().render_window);
+#endif
 }
 
 InputBackend::InputBackend(ControllerInterface* controller_interface)
@@ -94,19 +96,26 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
   }
 }
 
-void InputBackend::PopulateDevices()
+void ciface::Win32::PopulateDevices(void* hwnd)
 {
+#ifndef WINRT_XBOX
+#endif
+
   std::lock_guard lk_population(s_populate_mutex);
   s_first_populate_devices_asked.Set();
+#ifndef WINRT_XBOX
   ciface::DInput::PopulateDevices(GetHWND());
+#endif
   ciface::XInput::PopulateDevices();
   ciface::WGInput::PopulateDevices();
 }
 
 void InputBackend::HandleWindowChange()
 {
+#ifndef WINRT_XBOX
   std::lock_guard lk_population(s_populate_mutex);
   ciface::DInput::ChangeWindow(GetHWND());
+#endif
 }
 
 InputBackend::~InputBackend()

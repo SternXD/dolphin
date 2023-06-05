@@ -64,12 +64,17 @@ u32 SwapChain::GetSwapChainFlags() const
 
 bool SwapChain::CreateSwapChain(bool stereo, bool hdr)
 {
+#ifndef WINRT_XBOX
   RECT client_rc;
   if (GetClientRect(static_cast<HWND>(m_wsi.render_surface), &client_rc))
   {
     m_width = client_rc.right - client_rc.left;
     m_height = client_rc.bottom - client_rc.top;
   }
+#else
+  m_width = m_wsi.render_width;
+  m_height = m_wsi.render_height;
+#endif
 
   m_stereo = false;
   m_hdr = false;
@@ -96,17 +101,30 @@ bool SwapChain::CreateSwapChain(bool stereo, bool hdr)
     swap_chain_desc.Flags = GetSwapChainFlags();
 
     Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain1;
+#ifdef WINRT_XBOX
+    hr = dxgi_factory2->CreateSwapChainForCoreWindow(m_d3d_device.Get(),
+                                               static_cast<::IUnknown*>(m_wsi.render_surface),
+                                               &swap_chain_desc, nullptr, &swap_chain1);
+#else
     hr = dxgi_factory2->CreateSwapChainForHwnd(m_d3d_device.Get(),
                                                static_cast<HWND>(m_wsi.render_surface),
                                                &swap_chain_desc, nullptr, nullptr, &swap_chain1);
+#endif
+
     if (FAILED(hr))
     {
       // Flip-model discard swapchains aren't supported on Windows 8, so here we fall back to
       // a sequential swapchain
       swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+#ifdef WINRT_XBOX
+      hr = dxgi_factory2->CreateSwapChainForCoreWindow(
+          m_d3d_device.Get(), static_cast<::IUnknown*>(m_wsi.render_surface), &swap_chain_desc,
+          nullptr, &swap_chain1);
+#else
       hr = dxgi_factory2->CreateSwapChainForHwnd(m_d3d_device.Get(),
                                                  static_cast<HWND>(m_wsi.render_surface),
                                                  &swap_chain_desc, nullptr, nullptr, &swap_chain1);
+#endif
     }
 
     m_swap_chain = swap_chain1;
@@ -133,7 +151,9 @@ bool SwapChain::CreateSwapChain(bool stereo, bool hdr)
     desc.Flags = 0;
 
     m_allow_tearing_supported = false;
+
     hr = m_dxgi_factory->CreateSwapChain(m_d3d_device.Get(), &desc, &m_swap_chain);
+#endif
   }
 
   if (FAILED(hr))
@@ -142,11 +162,13 @@ bool SwapChain::CreateSwapChain(bool stereo, bool hdr)
     return false;
   }
 
+#ifndef WINRT_XBOX
   // We handle fullscreen ourselves.
   hr = m_dxgi_factory->MakeWindowAssociation(static_cast<HWND>(m_wsi.render_surface),
                                              DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER);
   if (FAILED(hr))
     WARN_LOG_FMT(VIDEO, "MakeWindowAssociation() failed: {}", Common::HRWrap(hr));
+#endif
 
   m_stereo = stereo;
 

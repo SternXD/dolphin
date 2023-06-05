@@ -40,6 +40,10 @@
 #include <io.h>
 #include <objbase.h>  // guid stuff
 #include <shellapi.h>
+
+#ifdef WINRT_XBOX
+#include "DolphinWinRT/UWPUtils.h"
+#endif
 #else
 #include <dirent.h>
 #include <errno.h>
@@ -85,7 +89,7 @@ static DolSecTranslocateCreateOriginalPathForURL s_create_orig_path;
 FileInfo::FileInfo(const std::string& path) : FileInfo(path.c_str())
 {
 }
-
+#pragma optimize("", off)
 FileInfo::FileInfo(const char* path)
 {
 #ifdef ANDROID
@@ -113,6 +117,7 @@ bool FileInfo::Exists() const
 {
   return m_exists;
 }
+#pragma optimize("", on)
 
 bool FileInfo::IsDirectory() const
 {
@@ -229,6 +234,56 @@ bool CreateDirs(std::string_view path)
 
 bool CreateFullPath(std::string_view fullPath)
 {
+#if WINRT_XBOX
+  int panicCounter = 100;
+  DEBUG_LOG_FMT(COMMON, "CreateFullPath: path {}", fullPath);
+
+  if (fs::exists(fullPath))
+  {
+    DEBUG_LOG_FMT(COMMON, "CreateFullPath: path exists {}", fullPath);
+    return true;
+  }
+
+  size_t position = 0;
+  while (true)
+  {
+    // Find next sub path
+    position = fullPath.find(DIR_SEP_CHR, position);
+
+    // we're done, yay!
+    if (position == fullPath.npos)
+      return true;
+
+    // Include the '/' so the first call is CreateDir("/") rather than CreateDir("")
+    std::string const subPath(fullPath.substr(0, position + 1));
+
+    if (subPath.starts_with("Q:"))
+    {
+      auto base = std::filesystem::path(UWP::GetLocalFolder()).make_preferred().native();
+      auto sub = std::filesystem::path(subPath).make_preferred().native();
+
+      // If we're on the write-protected drive and not in our app folder, skip trying to check this
+      // exists.
+      if (sub.rfind(base) != 0)
+      {
+        position++;
+        continue;
+      }
+    }
+
+    if (!IsDirectory(subPath))
+      File::CreateDir(subPath);
+
+    // A safety check
+    panicCounter--;
+    if (panicCounter <= 0)
+    {
+      ERROR_LOG_FMT(COMMON, "CreateFullPath: directory structure is too deep");
+      return false;
+    }
+    position++;
+  }
+#else
   DEBUG_LOG_FMT(COMMON, "{}: path {}", __func__, fullPath);
 
   std::error_code error;
@@ -241,6 +296,7 @@ bool CreateFullPath(std::string_view fullPath)
   if (!success)
     ERROR_LOG_FMT(COMMON, "{}: failed on {}: {}", __func__, fullPath, error.message());
   return success;
+#endif
 }
 
 // Deletes a directory filename, returns true on success

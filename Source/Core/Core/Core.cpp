@@ -17,6 +17,11 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+#ifdef WINRT_XBOX
+#include "VideoBackends/D3DCommon/D3DCommon.h"
+#include "VideoCommon/ShaderCache.h"
+#endif
 #endif
 
 #include "AudioCommon/AudioCommon.h"

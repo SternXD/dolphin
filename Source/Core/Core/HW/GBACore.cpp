@@ -1,5 +1,6 @@
 // Copyright 2021 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
+#ifdef HAS_LIBMGBA
 
 #include "Core/HW/GBACore.h"
 
@@ -746,3 +747,4 @@ std::string Core::GetSavePath(std::string_view rom_path, int device_number)
   return save_path;
 }
 }  // namespace HW::GBA
+#endif
