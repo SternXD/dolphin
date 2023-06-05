@@ -43,3 +43,8 @@ CMakeLists.txt.user
 /.vscode/
 # Ignore flatpak-builder's cache dir
 .flatpak-builder
+# Ignore files created by WinRT/UWP support
+/Source/DolphinWinRT/Generated Files/winrt
+/Source/DolphinWinRT/Sys
+/Source/DolphinWinRT/BundleArtifacts
+/Source/AppPackages/DolphinWinRT/

@@ -59,6 +59,9 @@ bool UseGameCovers()
   // Android has its own code for handling covers, written completely in Java.
   // It's best if we disable the C++ cover code on Android to avoid duplicated data and such.
   return false;
+#elif WINRT_XBOX
+  // Needed for the frontend
+  return true;
 #else
   return Config::Get(Config::MAIN_USE_GAME_COVERS);
 #endif
