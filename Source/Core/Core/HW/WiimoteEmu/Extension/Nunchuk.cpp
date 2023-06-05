@@ -34,7 +34,7 @@ constexpr std::array<u8, 2> nunchuk_button_bitmasks{{
     Nunchuk::BUTTON_Z,
 }};
 
-Nunchuk::Nunchuk() : Extension1stParty(_trans("Nunchuk"))
+Nunchuk::Nunchuk(const unsigned int index) : Extension1stParty(_trans("Nunchuk")), m_index(index)
 {
   // buttons
   groups.emplace_back(m_buttons = new ControllerEmu::Buttons(BUTTONS_GROUP));
@@ -199,18 +199,33 @@ void Nunchuk::DoState(PointerWrap& p)
 
 void Nunchuk::LoadDefaults(const ControllerInterface& ciface)
 {
-#ifndef ANDROID
+#if WINRT_XBOX && !ANDROID
   // Stick
-  m_stick->SetControlExpression(0, "W");  // up
-  m_stick->SetControlExpression(1, "S");  // down
-  m_stick->SetControlExpression(2, "A");  // left
-  m_stick->SetControlExpression(3, "D");  // right
+  m_stick->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                       "/Xbox One Game Controller:Left Y+`");  // up
+  m_stick->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                       "/Xbox One Game Controller:Left Y-`");  // down
+  m_stick->SetControlExpression(2, "`WGInput/" + std::to_string(m_index) +
+                                       "/Xbox One Game Controller:Left X-`");  // left
+  m_stick->SetControlExpression(3, "`WGInput/" + std::to_string(m_index) +
+                                       "/Xbox One Game Controller:Left X+`");  // right
+#else
+  m_stick->SetControlExpression(0, "W");           // up
+  m_stick->SetControlExpression(1, "S");           // down
+  m_stick->SetControlExpression(2, "A");           // left
+  m_stick->SetControlExpression(3, "D");           // right
+#endif
 
   // Because our defaults use keyboard input, set calibration shape to a square.
   m_stick->SetCalibrationFromGate(ControllerEmu::SquareStickGate(1.0));
 
 // Buttons
-#ifdef _WIN32
+#if WINRT_XBOX
+  m_buttons->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Trigger L`");  // C
+  m_buttons->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                         "/Xbox One Game Controller:Trigger R`");  // Z
+#elif _WIN32
   m_buttons->SetControlExpression(0, "LCONTROL");  // C
   m_buttons->SetControlExpression(1, "LSHIFT");    // Z
 #elif __APPLE__
@@ -230,6 +245,5 @@ void Nunchuk::LoadDefaults(const ControllerInterface& ciface)
     m_shake->SetControlExpression(i, "`Click 2`");
 #endif
   }
-#endif
 }
 }  // namespace WiimoteEmu
