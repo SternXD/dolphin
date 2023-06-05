@@ -874,7 +874,7 @@ const AbstractPipeline* ShaderCache::InsertGXPipeline(const GXPipelineUid& confi
   if (!entry.first && pipeline)
   {
     entry.first = std::move(pipeline);
-
+#ifndef WINRT_XBOX
     if (g_ActiveConfig.bShaderCache)
     {
       auto cache_data = entry.first->GetCacheData();
@@ -886,6 +886,7 @@ const AbstractPipeline* ShaderCache::InsertGXPipeline(const GXPipelineUid& confi
                                         static_cast<u32>(cache_data.size()));
       }
     }
+#endif
   }
 
   return entry.first.get();
@@ -901,6 +902,7 @@ ShaderCache::InsertGXUberPipeline(const GXUberPipelineUid& config,
   {
     entry.first = std::move(pipeline);
 
+#ifndef WINRT_XBOX
     if (g_ActiveConfig.bShaderCache)
     {
       auto cache_data = entry.first->GetCacheData();
@@ -912,6 +914,7 @@ ShaderCache::InsertGXUberPipeline(const GXUberPipelineUid& config,
                                              static_cast<u32>(cache_data.size()));
       }
     }
+#endif
   }
 
   return entry.first.get();

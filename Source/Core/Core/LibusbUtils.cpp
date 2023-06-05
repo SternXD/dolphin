@@ -22,6 +22,10 @@ class Context::Impl
 public:
   Impl()
   {
+#ifdef WINRT_XBOX
+    return;
+#endif
+
     const int ret = libusb_init(&m_context);
     ASSERT_MSG(IOS_USB, ret == LIBUSB_SUCCESS, "Failed to init libusb: {}", ErrorWrap(ret));
     if (ret != LIBUSB_SUCCESS)

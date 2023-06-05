@@ -429,6 +429,10 @@ static void RefreshConfig()
 
 void Init()
 {
+#ifdef WINRT_XBOX
+  return;
+#endif
+
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
   if (s_handle != nullptr)
     return;
@@ -688,8 +692,10 @@ void Shutdown()
   StopScanThread();
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
 #if LIBUSB_API_HAS_HOTPLUG
+#ifndef WINRT_XBOX
   if (s_libusb_context && s_libusb_context->IsValid() && s_libusb_hotplug_enabled)
     libusb_hotplug_deregister_callback(*s_libusb_context, s_hotplug_handle);
+#endif
 #endif
 #endif
   Reset(CalledFromReadThread::No);
