@@ -14,7 +14,7 @@ namespace Config
 
 // Graphics.Hardware
 
-const Info<bool> GFX_VSYNC{{System::GFX, "Hardware", "VSync"}, false};
+const Info<bool> GFX_VSYNC{{System::GFX, "Hardware", "VSync"}, true};
 const Info<int> GFX_ADAPTER{{System::GFX, "Hardware", "Adapter"}, 0};
 
 // Graphics.Settings
@@ -122,7 +122,7 @@ const Info<bool> GFX_SW_DUMP_TEV_TEX_FETCHES{{System::GFX, "Settings", "SWDumpTe
 
 const Info<bool> GFX_PREFER_GLES{{System::GFX, "Settings", "PreferGLES"}, false};
 
-const Info<bool> GFX_MODS_ENABLE{{System::GFX, "Settings", "EnableMods"}, false};
+const Info<bool> GFX_MODS_ENABLE{{System::GFX, "Settings", "EnableMods"}, true};
 
 const Info<std::string> GFX_DRIVER_LIB_NAME{{System::GFX, "Settings", "DriverLibName"}, ""};
 
