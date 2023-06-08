@@ -81,6 +81,16 @@
   <ItemGroup>
     <Text Include="$(BuildInfoTemplate)" />
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="UICommon\ImGuiMenu\ImGuiFrontend.cpp" />
+    <ClCompile Include="UICommon\ImGuiMenu\ImGuiNetplay.cpp" />
+    <ClCompile Include="UICommon\ImGuiMenu\WinRTKeyboard.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="UICommon\ImGuiMenu\ImGuiFrontend.h" />
+    <ClInclude Include="UICommon\ImGuiMenu\ImGuiNetplay.h" />
+    <ClInclude Include="UICommon\ImGuiMenu\WinRTKeyboard.h" />
+  </ItemGroup>
   <UsingTask TaskName="GetProductVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Path ParameterType="System.String" Required="true" />

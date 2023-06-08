@@ -10,21 +10,15 @@
 
 #include "ImGuiFrontend.h"
 
-#include "UWPUtils.h"
-#include "Host.h"
-
-#include "VideoCommon/VertexManagerBase.h"
-#include "VideoCommon/FramebufferManager.h"
+#include "DolphinWinRT/UWPUtils.h"
+#include "DolphinWinRT/Host.h"
 
 #include "ImGuiNetplay.h"
 #include "WinRTKeyboard.h"
 
 #include <imgui.h>
 
-#include <d3d11.h>
-#include <dxgi1_4.h>
-#include <tchar.h>
-
+#ifdef WINRT_XBOX
 #include <winrt/Windows.UI.Core.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>
@@ -32,14 +26,6 @@
 #include <winrt/windows.gaming.input.h>
 #include <windows.applicationmodel.h>
 #include <gamingdeviceinformation.h>
-
-#ifdef _DEBUG
-#define DX11_ENABLE_DEBUG_LAYER
-#endif
-
-#ifdef DX11_ENABLE_DEBUG_LAYER
-#include <dxgidebug.h>
-#pragma comment(lib, "dxguid.lib")
 #endif
 
 #include <unordered_map>
@@ -75,7 +61,6 @@
 #include "VideoCommon/VideoBackendBase.h"
 
 #include "InputCommon/InputConfig.h"
-#include "InputCommon/ControllerInterface/CoreDevice.h"
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
 
 namespace WGI = winrt::Windows::Gaming::Input;
@@ -83,64 +68,27 @@ using winrt::Windows::UI::Core::CoreWindow;
 using namespace winrt;
 
 namespace ImGuiFrontend {
-enum SelectedTab
-{
-  General,
-  Interface,
-  Graphics,
-  Controls,
-  Paths,
-  Wii,
-  GC,
-  Advanced,
-  About
-};
 
-class UIState
-{
-public:
-  bool controlsDisabled = false;
-  bool showSettingsWindow = false;
-  bool showListView = false;
-  bool menuPressed = false;
-  bool netplayPressed = false;
-  bool listViewPressed = false;
-  std::string selectedPath;
-  SelectedTab selectedTab = General;
-};
-
-std::vector<std::shared_ptr<ciface::Core::Device>> m_controllers;
-std::vector<std::string> m_paths;
-std::vector<std::shared_ptr<UICommon::GameFile>> m_games;
-std::unordered_map<std::string, std::unique_ptr<AbstractTexture>> m_cover_textures;
-u64 m_imgui_last_frame_time;
-
-std::unique_ptr<AbstractTexture> m_background_tex, m_background_list_tex;
-std::unique_ptr<AbstractTexture> m_missing_tex;
-
-int m_selectedGameIdx;
-float m_frameScale = 1.0f;
-bool m_direction_pressed = false;
-std::chrono::high_resolution_clock::time_point m_scroll_last = std::chrono::high_resolution_clock::now();
-
-std::string m_prev_list_search;
-std::vector<std::shared_ptr<UICommon::GameFile>> m_list_search_results;
-char m_list_search_buf[32];
-bool m_show_path_warning = false;
-
+constexpr const char* PROFILES_DIR = "Profiles/";
 std::vector<std::string> m_wiimote_profiles;
 std::string m_selected_wiimote_profile[] = {"", "", "", ""};
 std::vector<std::string> m_gc_profiles;
 std::string m_selected_gc_profile[] = {"", "", "", ""};
-
-constexpr const char* PROFILES_DIR = "Profiles/";
+std::vector<std::string> m_paths;
+bool m_show_path_warning = false;
+float m_frameScale = 1.0f;
+int m_selectedGameIdx;
 
 ImGuiFrontend::ImGuiFrontend()
 {
+  WindowSystemInfo wsi;
+
+#ifdef WINRT_XBOX
+  // To-Do: Handle other platforms, extract this code so it can be done by the host!
+
   CoreWindow window = CoreWindow::GetForCurrentThread();
   void* abi = winrt::get_abi(window);
 
-  WindowSystemInfo wsi;
   wsi.type = WindowSystemType::Windows;
   wsi.render_surface = abi;
   wsi.render_width = window.Bounds().Width;
@@ -156,15 +104,15 @@ ImGuiFrontend::ImGuiFrontend()
     {
       constexpr float frontend_modifier = 1.8f;
       uint32_t width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
-      uint32_t height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
 
-      m_frameScale = ((float)width / 1920.0f) * frontend_modifier;
+      m_frameScale = ((float) width / 1920.0f) * frontend_modifier;
       wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
       wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
       // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
-      wsi.render_surface_scale = ((float)wsi.render_width / 1920.0f) * 1.8f;
+      wsi.render_surface_scale = ((float) wsi.render_width / 1920.0f) * 1.8f;
     }
   }
+#endif
 
   // Manually reactivate the video backend in case a GameINI overrides the video backend setting.
   VideoBackendBase::PopulateBackendInfo();
@@ -217,13 +165,6 @@ ImGuiFrontend::ImGuiFrontend()
   LoadGameList();
 }
 
-static bool COMIsInitialized()
-{
-  APTTYPE apt_type{};
-  APTTYPEQUALIFIER apt_qualifier{};
-  return CoGetApartmentType(&apt_type, &apt_qualifier) == S_OK;
-}
-
 void ImGuiFrontend::PopulateControls()
 {
   g_controller_interface.RefreshDevices();
@@ -231,10 +172,11 @@ void ImGuiFrontend::PopulateControls()
   if (!g_controller_interface.HasDefaultDevice())
     return;
 
-  ciface::Core::DeviceQualifier dq;
-  dq.FromString(g_controller_interface.GetDefaultDeviceString());
   for (auto& device_str : g_controller_interface.GetAllDeviceStrings())
   {
+    ciface::Core::DeviceQualifier dq;
+    dq.FromString(device_str);
+
     auto device = g_controller_interface.FindDevice(dq);
     if (device)
     {
@@ -248,9 +190,10 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
   if (m_controllers.empty())
     PopulateControls();
 
+  bool input_handled = false;
   for (auto device : m_controllers)
   {
-    if (device == nullptr || !device->IsValid())
+    if (input_handled || device == nullptr || !device->IsValid())
       return;
 
     device->UpdateInput();
@@ -261,39 +204,52 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       auto now = std::chrono::high_resolution_clock::now();
       long timeSinceLastInput =
           std::chrono::duration_cast<std::chrono::milliseconds>(now - m_scroll_last).count();
-      if (device->FindInput("Pad W")->GetState() > 0.5f)
+      if (TryInput("Pad W", device))
       {
         if (!m_direction_pressed)
         {
-          m_selectedGameIdx = m_selectedGameIdx <= 0 ? m_games.size() - 1 : m_selectedGameIdx - 1;
+          m_selectedGameIdx =
+              m_selectedGameIdx <= 0 ? static_cast<int>(m_games.size()) - 1 : m_selectedGameIdx - 1;
           m_direction_pressed = true;
+          break;
         }
+
+        input_handled = true;
       }
-      else if (device->FindInput("Pad E")->GetState() > 0.5f)
+      else if (TryInput("Pad E", device))
       {
         if (!m_direction_pressed)
         {
-          m_selectedGameIdx = m_selectedGameIdx >= m_games.size() - 1 ? 0 : m_selectedGameIdx + 1;
+          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
           m_direction_pressed = true;
+          break;
         }
+
+        input_handled = true;
       }
-      else if (device->FindInput("Left X-")->GetState() > 0.5f)
+      else if (TryInput("Left X-", device))
       {
         if (timeSinceLastInput > 200L)
         {
-          m_selectedGameIdx = m_selectedGameIdx <= 0 ? m_games.size() - 1 : m_selectedGameIdx - 1;
+          m_selectedGameIdx = m_selectedGameIdx <= 0 ? static_cast<int>(m_games.size()) - 1 : m_selectedGameIdx - 1;
           m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
         }
+
+        input_handled = true;
       }
-      else if (device->FindInput("Left X+")->GetState() > 0.5f)
+      else if (TryInput("Left X+", device))
       {
         if (timeSinceLastInput > 200L)
         {
-          m_selectedGameIdx = m_selectedGameIdx >= m_games.size() - 1 ? 0 : m_selectedGameIdx + 1;
+          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
           m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
         }
+
+        input_handled = true;
       }
-      else if (m_games.size() > 10 && device->FindInput("Bumper L")->GetState() > 0.5f)
+      else if (m_games.size() > 10 && TryInput("Bumper L", device))
       {
         if (timeSinceLastInput > 500L)
         {
@@ -301,7 +257,7 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
           if (i < 0)
           {
             // wrap around, total games + -index
-            m_selectedGameIdx = m_games.size() + i;
+            m_selectedGameIdx = static_cast<int>(m_games.size()) + i;
           }
           else
           {
@@ -309,9 +265,12 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
           }
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
         }
+
+        input_handled = true;
       }
-      else if (m_games.size() > 10 && device->FindInput("Bumper R")->GetState() > 0.5f)
+      else if (m_games.size() > 10 && TryInput("Bumper R", device))
       {
         if (timeSinceLastInput > 500L)
         {
@@ -319,7 +278,7 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
           if (i >= m_games.size())
           {
             // wrap around, i - total games
-            m_selectedGameIdx = i - m_games.size();
+            m_selectedGameIdx = i - static_cast<int>(m_games.size());
           }
           else
           {
@@ -328,6 +287,8 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
         }
+
+        input_handled = true;
       }
       else
       {
@@ -360,11 +321,12 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
         winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessAllIfPresent);
 
+
     for (auto device : m_controllers)
     {
       if (device && device->IsValid() && !state.controlsDisabled)
       {
-        if (device->FindInput("View")->GetState() == 1.0f)
+        if (TryInput("View", device))
         {
           if (!state.menuPressed)
           {
@@ -372,18 +334,22 @@ FrontendResult ImGuiFrontend::RunMainLoop()
             state.menuPressed = true;
             LoadGameList();
           }
+
+          break;
         }
-        else if (device->FindInput("Button X")->GetState() == 1.0f)
+        else if (TryInput("Button X", device))
         {
-          if (!state.listViewPressed)
+          if (!state.menuPressed)
           {
             state.showListView = !state.showListView;
-            state.listViewPressed = true;
+            state.menuPressed = true;
           }
+
+          break;
         }
-        else if (device->FindInput("Menu")->GetState() == 1.0f)
+        else if (TryInput("Menu", device))
         {
-          if (!state.netplayPressed)
+          if (!state.menuPressed)
           {
             if (g_netplay_dialog)
             {
@@ -396,14 +362,14 @@ FrontendResult ImGuiFrontend::RunMainLoop()
               g_netplay_dialog = std::make_shared<ImGuiNetPlay>(this, m_games, m_frameScale);
             }
 
-            state.netplayPressed = true;
+            state.menuPressed = true;
           }
+
+          break;
         }
         else
         {
           state.menuPressed = false;
-          state.netplayPressed = false;
-          state.listViewPressed = false;
         }
       }
     }
@@ -466,90 +432,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
                        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
       {
-        if (ImGui::BeginListBox("##tabs", ImVec2(100 * m_frameScale, -1)))
-        {
-          if (ImGui::Selectable("General", state.selectedTab == General))
-          {
-            state.selectedTab = General;
-          }
-          if (ImGui::Selectable("Interface", state.selectedTab == Interface))
-          {
-            state.selectedTab = Interface;
-          }
-          if (ImGui::Selectable("Graphics", state.selectedTab == Graphics))
-          {
-            state.selectedTab = Graphics;
-          }
-          if (ImGui::Selectable("Controls", state.selectedTab == Controls))
-          {
-            state.selectedTab = Controls;
-          }
-          if (ImGui::Selectable("GameCube", state.selectedTab == GC))
-          {
-            state.selectedTab = GC;
-          }
-          if (ImGui::Selectable("Wii", state.selectedTab == Wii))
-          {
-            state.selectedTab = Wii;
-          }
-          if (ImGui::Selectable("Paths", state.selectedTab == Paths))
-          {
-            state.selectedTab = Paths;
-          }
-          if (ImGui::Selectable("Advanced", state.selectedTab == Advanced))
-          {
-            state.selectedTab = Advanced;
-          }
-          if (ImGui::Selectable("About", state.selectedTab == About))
-          {
-            state.selectedTab = About;
-          }
-
-          ImGui::EndListBox();
-        }
-
-        ImGui::SameLine();
-        if (ImGui::BeginChild("##tabview", ImVec2(-1, -1), true))
-        {
-          switch (state.selectedTab)
-          {
-          case General:
-            CreateGeneralTab(&state);
-            break;
-          case Interface:
-            CreateInterfaceTab(&state);
-            break;
-          case Graphics:
-            CreateGraphicsTab(&state);
-            break;
-          case Controls:
-            CreateControlsTab(&state);
-            break;
-          case GC:
-            CreateGameCubeTab(&state);
-            break;
-          case Wii:
-            CreateWiiTab(&state);
-            break;
-          case Paths:
-            CreatePathsTab(&state);
-            break;
-          case Advanced:
-            CreateAdvancedTab(&state);
-            break;
-          case About:
-            ImGui::TextWrapped(
-                "Dolphin Emulator on UWP - Version 1.15\n\n"
-                "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
-                "frontend, developed by SirMangler.\n"
-                "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"
-                "Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.");
-            break;
-          }
-          
-          ImGui::EndChild();
-        }
-        
+        DrawSettingsMenu(&state, m_frameScale);
         ImGui::End();
       }
     }
@@ -579,7 +462,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
   return selection;
 }
 
-void ImGuiFrontend::CreateGeneralTab(UIState* state)
+void CreateGeneralTab(UIState* state)
 {
   bool dualCore = Config::Get(Config::MAIN_CPU_THREAD);
   if (ImGui::Checkbox("Dual Core", &dualCore))
@@ -646,7 +529,7 @@ void ImGuiFrontend::CreateGeneralTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreateInterfaceTab(UIState* state)
+void CreateInterfaceTab(UIState* state)
 {
   bool showFps = Config::Get(Config::GFX_SHOW_FPS);
   if (ImGui::Checkbox("Show FPS", &showFps))
@@ -671,7 +554,7 @@ void ImGuiFrontend::CreateInterfaceTab(UIState* state)
 }
 
 
-void ImGuiFrontend::CreateGraphicsTab(UIState* state)
+void CreateGraphicsTab(UIState* state)
 {
   bool vSync = Config::Get(Config::GFX_VSYNC);
   if (ImGui::Checkbox("V-Sync", &vSync))
@@ -863,7 +746,7 @@ void ImGuiFrontend::CreateGraphicsTab(UIState* state)
     }
 
     ImGui::Separator();
-    for (int i = 0; i < 4; i++)
+    for (u32 i = 0; i < 4; i++)
     {
       ImGui::PushID(i);
       if (ImGui::RadioButton(aalevel_items[i], i == msaa))
@@ -897,7 +780,7 @@ void ImGuiFrontend::CreateGraphicsTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreateControlsTab(UIState* state)
+void CreateControlsTab(UIState* state)
 {
   auto devices = g_controller_interface.GetAllDeviceStrings();
 
@@ -924,7 +807,7 @@ void ImGuiFrontend::CreateControlsTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreateGameCubeTab(UIState* state)
+void CreateGameCubeTab(UIState* state)
 {
   const char* language_items[] = {"English", "German", "French", "Spanish", "Italian", "Dutch"};
   auto lang = Config::Get(Config::MAIN_GC_LANGUAGE);
@@ -1079,7 +962,7 @@ void ImGuiFrontend::CreateGameCubeTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreateWiiTab(UIState* state)
+void CreateWiiTab(UIState* state)
 {
   bool pal60 = Config::Get(Config::SYSCONF_PAL60);
   if (ImGui::Checkbox("Enable PAL60", &pal60))
@@ -1096,7 +979,7 @@ void ImGuiFrontend::CreateWiiTab(UIState* state)
 
   if (ImGui::TreeNode("System Language"))
   {
-    for (int i = 0; i < 10; i++)
+    for (u32 i = 0; i < 10; i++)
     {
       ImGui::PushID(i);
       if (ImGui::RadioButton(language_items[i], i == lang))
@@ -1115,7 +998,7 @@ void ImGuiFrontend::CreateWiiTab(UIState* state)
 
   if (ImGui::TreeNode("Sound"))
   {
-    for (int i = 0; i < 4; i++)
+    for (u32 i = 0; i < 4; i++)
     {
       ImGui::PushID(i);
       if (ImGui::RadioButton(sound_items[i], i == sound))
@@ -1130,7 +1013,7 @@ void ImGuiFrontend::CreateWiiTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreateAdvancedTab(UIState* state)
+void CreateAdvancedTab(UIState* state)
 {
   bool viSkipEnable = Config::Get(Config::GFX_HACK_VI_SKIP);
   if (ImGui::Checkbox("Enable VI Skip", &viSkipEnable))
@@ -1214,7 +1097,7 @@ void ImGuiFrontend::CreateAdvancedTab(UIState* state)
   }
 }
 
-void ImGuiFrontend::CreatePathsTab(UIState* state)
+void CreatePathsTab(UIState* state)
 {
   ImGui::Text("Game Folders");
   if (ImGui::BeginListBox("##folders")) {
@@ -1334,7 +1217,7 @@ void ImGuiFrontend::CreatePathsTab(UIState* state)
                      "your USB will not work properly!");
 }
 
-void ImGuiFrontend::CreateWiiPort(int index, std::vector<std::string> devices)
+void CreateWiiPort(int index, std::vector<std::string> devices)
 {
   if (ImGui::BeginChild(std::format("gc-wii-{}", index).c_str(), ImVec2(-1, 150), true))
   {
@@ -1370,7 +1253,6 @@ void ImGuiFrontend::CreateWiiPort(int index, std::vector<std::string> devices)
             {
               // Loading an empty inifile section clears everything.
               Common::IniFile::Section sec;
-              const auto default_device = controller->GetDefaultDevice();
 
               controller->LoadConfig(&sec);
               controller->SetDefaultDevice(default_device);
@@ -1426,7 +1308,7 @@ void ImGuiFrontend::CreateWiiPort(int index, std::vector<std::string> devices)
   ImGui::EndChild();
 }
 
-void ImGuiFrontend::CreateGCPort(int index, std::vector<std::string> devices)
+void CreateGCPort(int index, std::vector<std::string> devices)
 {
   if (ImGui::BeginChild(std::format("gc-port-{}", index).c_str(), ImVec2(-1, 150), true))
   {
@@ -1462,8 +1344,6 @@ void ImGuiFrontend::CreateGCPort(int index, std::vector<std::string> devices)
             {
               // Loading an empty inifile section clears everything.
               Common::IniFile::Section sec;
-              const auto default_device = controller->GetDefaultDevice();
-
               controller->LoadConfig(&sec);
               controller->SetDefaultDevice(default_device);
               Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
@@ -1578,7 +1458,7 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
 
   if (ImGui::BeginListBox("##Games List", ImVec2(-1, -1)))
   {
-    int search = strlen(m_list_search_buf);
+    size_t search = strlen(m_list_search_buf);
     std::vector<std::shared_ptr<UICommon::GameFile>> games;
     if (search > 0)
     {
@@ -1633,9 +1513,6 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
       return m_games[m_selectedGameIdx];
   }
 
-  auto table_flags = ImGuiTableFlags_Borders;
-  int selectionIdx = 0;
-
   // Display 5 games, 2 games to the left of the selection, 2 games to the right.
   for (int i = m_selectedGameIdx - 2; i < m_selectedGameIdx + 3; i++)
   {
@@ -1645,19 +1522,19 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
       if (i < 0)
       {
         // wrap around, total games + -index
-        idx = m_games.size() + i;
+        idx = static_cast<int>(m_games.size()) + i;
       }
       else if (i >= m_games.size())
       {
         // wrap around, i - total games
-        idx = i - m_games.size();
+        idx = i - static_cast<int>(m_games.size());
       }
     }
     else
     {
       if (i < 0)
       {
-        idx = m_games.size() + i;
+        idx = static_cast<int>(m_games.size()) + i;
       }
       else if (i >= m_games.size())
       {
@@ -1871,9 +1748,11 @@ void ImGuiFrontend::LoadGameList()
     RecurseFolder(dir);
   }
 
+#ifdef WINRT_XBOX
   // Load from the default path
   auto localCachePath = winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
   RecurseFolder(localCachePath);
+#endif
 
   std::sort(m_games.begin(), m_games.end(),
           [this](std::shared_ptr<UICommon::GameFile> first,
@@ -1917,4 +1796,100 @@ void ImGuiFrontend::AddGameFolder(std::string path)
   m_paths.push_back(path);
   Config::SetIsoPaths(m_paths);
 }
+
+bool ImGuiFrontend::TryInput(std::string expression, std::shared_ptr<ciface::Core::Device> device)
+{
+  auto* input = device->FindInput(expression);
+  if (input == nullptr)
+    return false;
+
+  return input->GetState() > 0.5f;
 }
+
+void DrawSettingsMenu(UIState* state, float frame_scale)
+{
+  if (ImGui::BeginListBox("##tabs", ImVec2(100 * frame_scale, -1)))
+  {
+    if (ImGui::Selectable("General", state->selectedTab == General))
+    {
+      state->selectedTab = General;
+    }
+    if (ImGui::Selectable("Interface", state->selectedTab == Interface))
+    {
+      state->selectedTab = Interface;
+    }
+    if (ImGui::Selectable("Graphics", state->selectedTab == Graphics))
+    {
+      state->selectedTab = Graphics;
+    }
+    if (ImGui::Selectable("Controls", state->selectedTab == Controls))
+    {
+      state->selectedTab = Controls;
+    }
+    if (ImGui::Selectable("GameCube", state->selectedTab == GC))
+    {
+      state->selectedTab = GC;
+    }
+    if (ImGui::Selectable("Wii", state->selectedTab == Wii))
+    {
+      state->selectedTab = Wii;
+    }
+    if (ImGui::Selectable("Paths", state->selectedTab == Paths))
+    {
+      state->selectedTab = Paths;
+    }
+    if (ImGui::Selectable("Advanced", state->selectedTab == Advanced))
+    {
+      state->selectedTab = Advanced;
+    }
+    if (ImGui::Selectable("About", state->selectedTab == About))
+    {
+      state->selectedTab = About;
+    }
+
+    ImGui::EndListBox();
+  }
+
+  ImGui::SameLine();
+  if (ImGui::BeginChild("##tabview", ImVec2(-1, -1), true))
+  {
+    switch (state->selectedTab)
+    {
+    case General:
+      CreateGeneralTab(state);
+      break;
+    case Interface:
+      CreateInterfaceTab(state);
+      break;
+    case Graphics:
+      CreateGraphicsTab(state);
+      break;
+    case Controls:
+      CreateControlsTab(state);
+      break;
+    case GC:
+      CreateGameCubeTab(state);
+      break;
+    case Wii:
+      CreateWiiTab(state);
+      break;
+    case Paths:
+      CreatePathsTab(state);
+      break;
+    case Advanced:
+      CreateAdvancedTab(state);
+      break;
+    case About:
+      ImGui::TextWrapped(
+          "Dolphin Emulator on UWP - Version 1.15\n\n"
+          "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
+          "frontend, developed by SirMangler.\n"
+          "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"
+          "Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.");
+      break;
+    }
+
+    ImGui::EndChild();
+  }
+}
+}  // namespace ImGuiFrontend

@@ -72,7 +72,7 @@ public:
   ImGuiNetPlay(ImGuiFrontend* frontend, std::vector<std::shared_ptr<UICommon::GameFile>> games, float frame_scale);
 
   NetPlayDrawResult Draw();
-  void DrawLobby();
+  void DrawLobbyWindow();
   void DrawSetup();
   void Reset();
   void DisplayMessage(std::string msg, int duration, float r, float g, float b);
@@ -82,4 +82,6 @@ private:
   std::vector<std::shared_ptr<UICommon::GameFile>> m_games;
   float m_frameScale;
 };
+
+void DrawLobbyMenu();
 }  // namespace
