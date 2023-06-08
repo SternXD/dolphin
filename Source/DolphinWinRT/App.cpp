@@ -1,10 +1,6 @@
 #include "Host.h"
 
 #include "UWPUtils.h"
-#include "ImGuiFrontend.h"
-#include "ImGuiNetplay.h"
-
-#include "WinRTKeyboard.h"
 
 #include <windows.h>
 #include <iostream>
@@ -23,10 +19,16 @@
 
 #include <Gamingdeviceinformation.h>
 
-#include "Common/WindowSystemInfo.h"
 #include "UICommon/UICommon.h"
 #include "UICommon/GameFile.h"
+#include "UICommon/ImGuiMenu/ImGuiFrontend.h"
+#include "UICommon/ImGuiMenu/ImGuiNetplay.h"
+#include "UICommon/ImGuiMenu/WinRTKeyboard.h"
+
 #include "VideoCommon/OnScreenDisplay.h"
+#include "VideoCommon/Present.h"
+
+#include "Common/WindowSystemInfo.h"
 
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
@@ -112,22 +114,22 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       g_tried_graceful_shutdown.Clear();
 
       // Dolphin loop
-      while (m_running.IsSet())
+      while (Core::GetState() != Core::State::Stopping)
       {
         if (g_shutdown_requested.TestAndClear())
         {
-          const auto ios = IOS::HLE::GetIOS();
-          const auto stm = ios ? ios->GetDeviceByName("/dev/stm/eventhook") : nullptr;
-          if (!g_tried_graceful_shutdown.IsSet() && stm &&
-              std::static_pointer_cast<IOS::HLE::STMEventHookDevice>(stm)->HasHookInstalled())
-          {
-            UICommon::TriggerSTMPowerEvent();
-            g_tried_graceful_shutdown.Set();
-          }
-          else
-          {
-            m_running.Clear();
-          }
+          UICommon::TriggerSTMPowerEvent();
+
+          if (Core::GetState() == Core::State::Paused)
+            Core::SetState(Core::State::Running);
+
+          if (NetPlay::IsNetPlayRunning())
+            NetPlay::SendPowerButtonEvent();
+
+          Core::Stop();
+          Core::Shutdown();
+
+          break;
         }
 
         ::Core::HostDispatchJobs();
@@ -140,10 +142,17 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
           HotkeyManagerEmu::GetStatus(true);
 
-          //if (HotkeyManagerEmu::IsPressed(HK_OPEN_OVERLAY, false))
-          //{
-          //  OSD::ToggleMenuVisibility();
-          //}
+          if (HotkeyManagerEmu::IsPressed(HK_TOGGLE_ONSCREEN_MENU, false))
+          {
+            OSD::ToggleShowSettings();
+            Core::SetState(Core::GetState() == Core::State::Paused ? Core::State::Running :
+                                                                      Core::State::Paused);
+          }
+
+          if (Core::GetState() == Core::State::Paused)
+          {
+            g_presenter->Present();
+          }
         }
 
         CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
@@ -153,9 +162,8 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       }
 
       // Make sure we've shut down properly.
-      Core::Stop();
-      Core::Shutdown();
-      UICommon::Shutdown();
+
+      m_running.Clear();
 
       // If there's another frontend, boot to that.
       if (!m_launchOnExit.empty())

@@ -2,27 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="ImGuiFrontend.cpp">
-      <Filter>Frontend</Filter>
-    </ClCompile>
-    <ClCompile Include="ImGuiNetplay.cpp">
-      <Filter>Frontend</Filter>
-    </ClCompile>
-    <ClCompile Include="WinRTKeyboard.cpp">
-      <Filter>Common</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="ImGuiFrontend.h">
-      <Filter>Frontend</Filter>
-    </ClInclude>
-    <ClInclude Include="ImGuiNetplay.h">
-      <Filter>Frontend</Filter>
-    </ClInclude>
-    <ClInclude Include="WinRTKeyboard.h">
-      <Filter>Common</Filter>
-    </ClInclude>
     <ClInclude Include="Host.h">
       <Filter>Common</Filter>
     </ClInclude>
@@ -65,9 +47,6 @@
   <ItemGroup>
     <Filter Include="Assets">
       <UniqueIdentifier>{db9086fe-bacc-4437-8272-1aa6642082db}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Frontend">
-      <UniqueIdentifier>{ec7cde7f-cc29-4dc0-980e-7283bb116d97}</UniqueIdentifier>
     </Filter>
     <Filter Include="Common">
       <UniqueIdentifier>{2a377798-02f1-43c0-a864-bc04c839f5f5}</UniqueIdentifier>

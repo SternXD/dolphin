@@ -38,6 +38,7 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
     _trans("Center Mouse"),
     _trans("Activate NetPlay Chat"),
     _trans("Control NetPlay Golf Mode"),
+    _trans("Show On-Screen Menu"),
 
     _trans("Volume Down"),
     _trans("Volume Up"),
@@ -330,7 +331,7 @@ struct HotkeyGroupInfo
 };
 
 constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
-    {{_trans("General"), HK_OPEN, HK_REQUEST_GOLF_CONTROL},
+    {{_trans("General"), HK_OPEN, HK_TOGGLE_ONSCREEN_MENU},
      {_trans("Volume"), HK_VOLUME_DOWN, HK_VOLUME_TOGGLE_MUTE},
      {_trans("Emulation Speed"), HK_DECREASE_EMULATION_SPEED, HK_TOGGLE_THROTTLE},
      {_trans("Frame Advance"), HK_FRAME_ADVANCE, HK_FRAME_ADVANCE_RESET_SPEED},
@@ -502,4 +503,11 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
 
   set_key_expression(HK_SKYLANDERS_PORTAL, hotkey_string({"Ctrl", "P"}));
   set_key_expression(HK_INFINITY_BASE, hotkey_string({"Ctrl", "I"}));
+
+  // On-Screen Menu
+#ifdef WINRT_XBOX
+  set_key_expression(
+      HK_TOGGLE_ONSCREEN_MENU,
+      "`WGInput/0/Xbox One Game Controller:Thumb L` & `WGInput/0/Xbox One Game Controller:View`");
+#endif
 }

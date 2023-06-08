@@ -12,11 +12,19 @@
 #include <fmt/format.h>
 #include <imgui.h>
 
+#include "UICommon/ImGuiMenu/ImGuiFrontend.h"
+
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/Timer.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/State.h"
+
+#ifdef WINRT_XBOX
+#include "DolphinWinRT/Host.h"
+#include "DolphinWinRT/UWPUtils.h"
+#endif
 
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AbstractTexture.h"
@@ -33,6 +41,8 @@ constexpr float MESSAGE_DROP_TIME = 5000.f;  // Ms to drop OSD messages that has
 
 static std::atomic<int> s_obscured_pixels_left = 0;
 static std::atomic<int> s_obscured_pixels_top = 0;
+static ImGuiFrontend::UIState s_setting_state{};
+static bool s_show_menu;
 
 struct Message
 {
@@ -196,6 +206,113 @@ void ClearMessages()
   s_messages.clear();
 }
 
+void DrawInGameMenu()
+{
+  if (!s_show_menu)
+    return;
+
+  float frame_scale = ImGui::GetIO().DisplayFramebufferScale.x;
+  ImGui::SetNextWindowSize(ImVec2(540 * frame_scale, 425 * frame_scale));
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * frame_scale,
+                                 ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * frame_scale));
+  if (ImGui::Begin("Pause Menu", nullptr,
+                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    if (ImGui::BeginTabBar("InGameTabs"))
+    {
+#ifdef WINRT_XBOX
+      // todo - make the host handle this!!
+      if (ImGui::BeginTabItem("General"))
+      {
+        if (ImGui::Button("Change Disc"))
+        {
+          UWP::PickDisc();
+        }
+
+        if (ImGui::Button("Exit Game"))
+        {
+          if (!UWP::g_tried_graceful_shutdown.TestAndClear())
+          {
+            UWP::g_shutdown_requested.Set();
+
+            s_show_menu = false;
+            Core::SetState(Core::State::Running);
+          }
+          else
+          {
+            exit(0);
+          }
+        }
+
+        ImGui::EndTabItem();
+      }
+#endif
+
+      if (ImGui::BeginTabItem("Save States"))
+      {
+        ImGui::TextWrapped("Warning: Savestates can be buggy with Dual Core enabled, do not rely on them "
+                    "or you may risk losing progress.");
+        for (int i = 0; i < 5; i++)
+        {
+          if (ImGui::BeginChild(std::format("savestate-{}", i).c_str(), ImVec2(-1, 75 * frame_scale), true))
+          {
+            ImGui::Text("Port %d - %s", i, State::GetInfoStringOfSlot(i).c_str());
+
+            if (ImGui::Button(std::format("Load State in Port {}", i).c_str()))
+            {
+              Core::RunOnCPUThread([i] {
+                Core::SetState(Core::State::Running);
+                State::Load(i);
+              }, false);
+
+              s_show_menu = false;
+            }
+
+            if (ImGui::Button(std::format("Save State in Port {}", i).c_str()))
+            {
+              Core::RunOnCPUThread([i] {
+                State::Save(i);
+              }, false);
+
+              s_show_menu = false;
+              Core::SetState(Core::State::Running);
+            }
+          }
+
+          ImGui::EndChild();
+        }
+
+        ImGui::EndTabItem();
+      }
+
+      if (ImGui::BeginTabItem("Options"))
+      {
+        ImGuiFrontend::DrawSettingsMenu(&s_setting_state, frame_scale);
+        ImGui::EndTabItem();
+      }
+
+      if (ImGui::BeginTabItem("Netplay"))
+      {
+        if (g_netplay_client != nullptr)
+        {
+          ImGuiFrontend::DrawLobbyMenu();
+        }
+        else
+        {
+          ImGui::Text("You are not currently in any Netplay lobby.");
+        }
+
+        ImGui::EndTabItem();
+      }
+
+      ImGui::EndTabBar();
+    }
+
+    ImGui::End();
+  }
+}
+
 void SetObscuredPixelsLeft(int width)
 {
   s_obscured_pixels_left = width;
@@ -204,5 +321,10 @@ void SetObscuredPixelsLeft(int width)
 void SetObscuredPixelsTop(int height)
 {
   s_obscured_pixels_top = height;
+}
+
+void ToggleShowSettings()
+{
+  s_show_menu = !s_show_menu;
 }
 }  // namespace OSD

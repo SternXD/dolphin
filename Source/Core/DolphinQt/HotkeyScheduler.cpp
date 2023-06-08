@@ -632,6 +632,9 @@ void HotkeyScheduler::Run()
 
     if (IsHotkey(HK_SAVE_STATE_FILE))
       emit StateSaveFile();
+
+    if (IsHotkey(HK_TOGGLE_ONSCREEN_MENU))
+      OSD::DrawInGameMenu();
   }
 }
 
