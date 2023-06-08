@@ -1,5 +1,4 @@
 #include "ImGuiNetPlay.h"
-#include "UWPUtils.h"
 #include "WinRTKeyboard.h"
 
 #include "imgui.h"
@@ -7,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 
+#ifdef WINRT_XBOX
 #include <winrt/Windows.UI.Core.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>
@@ -15,7 +15,12 @@
 #include <windows.applicationmodel.h>
 #include <gamingdeviceinformation.h>
 
-#include "Host.h"
+#include "DolphinWinRT/Host.h"
+#include "DolphinWinRT/UWPUtils.h"
+
+using winrt::Windows::UI::Core::CoreWindow;
+using namespace winrt;
+#endif
 
 #include "Core/Core.h"
 #include "Core/Boot/Boot.h"
@@ -32,9 +37,6 @@
 
 #include "VideoCommon/NetPlayChatUI.h"
 #include "VideoCommon/OnScreenDisplay.h"
-
-using winrt::Windows::UI::Core::CoreWindow;
-using namespace winrt;
 
 namespace ImGuiFrontend
 {
@@ -65,7 +67,7 @@ ImGuiNetPlay::ImGuiNetPlay(ImGuiFrontend* frontend, std::vector<std::shared_ptr<
   strcpy(m_host_buf, address.data());
 }
 
-void ImGuiNetPlay::DrawLobby()
+void ImGuiNetPlay::DrawLobbyWindow()
 {
   ImGui::SetNextWindowSize(ImVec2(540 * m_frameScale, 425 * m_frameScale));
   ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frameScale,
@@ -81,7 +83,7 @@ void ImGuiNetPlay::DrawLobby()
         const auto host_id = Common::g_TraversalClient->GetHostID();
         address = Common::g_TraversalClient->IsConnected() ?
                       std::string(host_id.begin(), host_id.end()) :
-                                                     "Connecting..";
+                      "Connecting..";
       }
       else
       {
@@ -98,147 +100,18 @@ void ImGuiNetPlay::DrawLobby()
       ImGui::Text(m_traversal ? "Lobby Code: %s" : "External IP: %s", address.c_str());
     }
 
-    auto game = FindGameFile(m_current_game_identifier);
+    auto game = g_netplay_dialog->FindGameFile(m_current_game_identifier);
     if (game)
     {
       ImGui::Text("Selected Game: %s", game->GetName(m_frontend->m_title_database).c_str());
     }
-    ImGui::Spacing();
-
-    auto players = g_netplay_client->GetPlayers();
-    if (ImGui::BeginTable("players", 2))
-    {
-      ImGui::TableSetupColumn("Player");
-      ImGui::TableSetupColumn("Latency");
-      ImGui::TableHeadersRow();
-      for (auto& player : players)
-      {
-        ImGui::TableNextColumn();
-        ImGui::Text("%s", player->name.c_str());
-        ImGui::TableNextColumn();
-        ImGui::Text("%d", player->ping);
-      }
-
-      ImGui::EndTable();
-    }
 
     ImGui::Spacing();
+    
+    DrawLobbyMenu();
 
-    if (g_netplay_server != nullptr)
+    if (g_netplay_server)
     {
-      int pad_buffer = Config::Get(Config::NETPLAY_BUFFER_SIZE);
-      if (ImGui::InputInt("Pad Buffer", &pad_buffer))
-      {
-        Config::SetBaseOrCurrent(Config::NETPLAY_BUFFER_SIZE, pad_buffer);
-        Config::Save();
-        g_netplay_server->AdjustPadBufferSize(static_cast<unsigned int>(pad_buffer));
-      }
-
-      if (ImGui::BeginTable("gc-slots", 4))
-      {
-        ImGui::TableNextColumn();
-        ImGui::Text("GC Pad 1");
-        ImGui::TableNextColumn();
-        ImGui::Text("GC Pad 2");
-        ImGui::TableNextColumn();
-        ImGui::Text("GC Pad 3");
-        ImGui::TableNextColumn();
-        ImGui::Text("GC Pad 4");
-
-        ImGui::TableNextRow();
-
-        auto gc_mapping = g_netplay_server->GetPadMapping();
-        for (uint32_t port = 0; port < 4; port++)
-        {
-          ImGui::TableNextColumn();
-          std::string selected_player = "None";
-          for (auto player : players)
-          {
-            if (gc_mapping[port] == player->pid)
-            {
-              selected_player = player->name;
-              break;
-            }
-          }
-
-          if (ImGui::BeginCombo(std::format("##port-{}", port).c_str(), selected_player.c_str()))
-          {
-            for (auto& player : players)
-            {
-              if (ImGui::Selectable(player->name.c_str(), gc_mapping[port] == player->pid))
-              {
-                gc_mapping[port] = player->pid;
-                g_netplay_server->SetPadMapping(gc_mapping);
-              }
-            }
-
-            if (ImGui::Selectable("None", gc_mapping[port] == 0))
-            {
-              gc_mapping[port] = 0;
-              g_netplay_server->SetPadMapping(gc_mapping);
-            }
-
-            ImGui::EndCombo();
-          }
-        }
-
-        ImGui::EndTable();
-      }
-
-      ImGui::Spacing();
-
-      if (ImGui::BeginTable("wii-slots", 4))
-      {
-        ImGui::TableNextColumn();
-        ImGui::Text("Wii Pad 1");
-        ImGui::TableNextColumn();
-        ImGui::Text("Wii Pad 2");
-        ImGui::TableNextColumn();
-        ImGui::Text("Wii Pad 3");
-        ImGui::TableNextColumn();
-        ImGui::Text("Wii Pad 4");
-
-        ImGui::TableNextRow();
-
-        auto wii_mapping = g_netplay_server->GetWiimoteMapping();
-        for (uint32_t port = 0; port < 4; port++)
-        {
-          std::string selected_player = "None";
-          for (auto player : players)
-          {
-            if (wii_mapping[port] == player->pid)
-            {
-              selected_player = player->name;
-              break;
-            }
-          }
-
-          ImGui::TableNextColumn();
-          if (ImGui::BeginCombo(std::format("##wiiport-{}", port).c_str(), selected_player.c_str()))
-          {
-            for (auto& player : g_netplay_client->GetPlayers())
-            {
-              if (ImGui::Selectable(player->name.c_str(), wii_mapping[port] == player->pid))
-              {
-                wii_mapping[port] = player->pid;
-                g_netplay_server->SetWiimoteMapping(wii_mapping);
-              }
-            }
-
-            if (ImGui::Selectable("None", wii_mapping[port] == 0))
-            {
-              wii_mapping[port] = 0;
-              g_netplay_server->SetWiimoteMapping(wii_mapping);
-            }
-
-            ImGui::EndCombo();
-          }
-        }
-
-        ImGui::EndTable();
-      }
-
-      ImGui::Spacing();
       ImGui::Spacing();
 
       if (ImGui::Button("Start Game"))
@@ -251,30 +124,30 @@ void ImGuiNetPlay::DrawLobby()
       }
 
       ImGui::SameLine();
-    }
 
-    if (ImGui::Button("Exit Lobby"))
-    {
-      g_netplay_client = nullptr;
-      g_netplay_server = nullptr;
-    }
-
-    if (m_prompt_warning)
-    {
-      m_prompt_warning = false;
-      ImGui::OpenPopup("Warning");
-    }
-
-    if (ImGui::BeginPopupModal("Warning"))
-    {
-      ImGui::Text(m_warning_text.c_str());
-      ImGui::Separator();
-      if (ImGui::Button("OK"))
+      if (ImGui::Button("Exit Lobby"))
       {
-        ImGui::CloseCurrentPopup();
+        g_netplay_client = nullptr;
+        g_netplay_server = nullptr;
       }
 
-      ImGui::EndPopup();
+      if (m_prompt_warning)
+      {
+        m_prompt_warning = false;
+        ImGui::OpenPopup("Warning");
+      }
+
+      if (ImGui::BeginPopupModal("Warning"))
+      {
+        ImGui::Text(m_warning_text.c_str());
+        ImGui::Separator();
+        if (ImGui::Button("OK"))
+        {
+          ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+      }
     }
 
     ImGui::Dummy(ImVec2(0.0f, 25.0f));
@@ -374,9 +247,6 @@ void ImGuiNetPlay::DrawSetup()
           const std::string traversal_host = Config::Get(Config::NETPLAY_TRAVERSAL_SERVER);
           const u16 traversal_port = Config::Get(Config::NETPLAY_TRAVERSAL_PORT);
           const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
-          const std::string network_mode = Config::Get(Config::NETPLAY_NETWORK_MODE);
-          const bool host_input_authority =
-              network_mode == "hostinputauthority" || network_mode == "golf";
 
           g_netplay_client = std::make_shared<NetPlay::NetPlayClient>(
               host_ip, host_port, this, nickname,
@@ -492,7 +362,7 @@ void ImGuiNetPlay::DrawSetup()
 
       if (ImGui::Button("Host Lobby"))
       {
-        int nick_len = strlen(m_nick_buf);
+        size_t nick_len = strlen(m_nick_buf);
         if (nick_len == 0)
         {
           Warning("Please enter a valid nickname!");
@@ -537,8 +407,6 @@ void ImGuiNetPlay::DrawSetup()
 
             const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
             const std::string network_mode = Config::Get(Config::NETPLAY_NETWORK_MODE);
-            const bool host_input_authority =
-                network_mode == "hostinputauthority" || network_mode == "golf";
 
             g_netplay_client = std::make_shared<NetPlay::NetPlayClient>(
                 host_ip, host_port, this, nickname,
@@ -583,7 +451,7 @@ NetPlayDrawResult ImGuiNetPlay::Draw()
 {
   if (g_netplay_client)
   {
-    DrawLobby();
+    DrawLobbyWindow();
   }
   else
   {
@@ -595,6 +463,11 @@ NetPlayDrawResult ImGuiNetPlay::Draw()
 
 void ImGuiNetPlay::BootGame(const std::string& filename,
                             std::unique_ptr<BootSessionData> boot_session_data) {
+// Todo, make the host handle this.
+#ifdef WINRT_XBOX
+// Visual Studio / Microsoft Programming moment
+#pragma warning(push)
+#pragma warning(disable : 4265)
   CoreApplication::MainView().Dispatcher().RunAsync(
       winrt::Windows::UI::Core::CoreDispatcherPriority::Normal,
       [filename, data = std::move(boot_session_data)] {
@@ -631,6 +504,8 @@ void ImGuiNetPlay::BootGame(const std::string& filename,
           fprintf(stderr, "Could not boot the specified file\n");
         }
     });
+#pragma warning(pop)
+#endif
 
   result = NetPlayDrawResult::BootGame;
 };
@@ -703,7 +578,10 @@ void ImGuiNetPlay::OnMsgStopGame()
   g_netplay_client->StopGame();
 
   if (Core::IsRunningAndStarted()) {
+#ifdef WINRT_XBOX
+    // todo make the host manage this
     UWP::g_shutdown_requested.Set();
+#endif
   }
 }
 
@@ -763,7 +641,10 @@ void ImGuiNetPlay::OnGameStartAborted()
 {
   if (Core::IsRunningAndStarted())
   {
+#ifdef WINRT_XBOX
+    // todo make the host manage this
     UWP::g_shutdown_requested.Set();
+#endif
   }
 }
 
@@ -811,7 +692,7 @@ void ImGuiNetPlay::SetGameDigestProgress(int pid, int progress)
 {
 }
 
-void ImGuiNetPlay::SetGameDigestResult(int pid, const std::string& result)
+void ImGuiNetPlay::SetGameDigestResult(int pid, const std::string& r)
 {
 }
 
@@ -844,6 +725,148 @@ void ImGuiNetPlay::SetHostWiiSyncData(std::vector<u64> titles, std::string redir
 {
   if (g_netplay_client)
     g_netplay_client->SetWiiSyncData(nullptr, std::move(titles), std::move(redirect_folder));
+}
+
+void DrawLobbyMenu()
+{
+  if (g_netplay_client == nullptr)
+    return;
+
+  auto players = g_netplay_client->GetPlayers();
+  if (ImGui::BeginTable("players", 2))
+  {
+    ImGui::TableSetupColumn("Player");
+    ImGui::TableSetupColumn("Latency");
+    ImGui::TableHeadersRow();
+    for (auto& player : players)
+    {
+      ImGui::TableNextColumn();
+      ImGui::Text("%s", player->name.c_str());
+      ImGui::TableNextColumn();
+      ImGui::Text("%d", player->ping);
+    }
+
+    ImGui::EndTable();
+  }
+
+  if (g_netplay_server != nullptr)
+  {
+    ImGui::Spacing();
+
+    int pad_buffer = Config::Get(Config::NETPLAY_BUFFER_SIZE);
+    if (ImGui::InputInt("Pad Buffer", &pad_buffer))
+    {
+      Config::SetBaseOrCurrent(Config::NETPLAY_BUFFER_SIZE, pad_buffer);
+      Config::Save();
+      g_netplay_server->AdjustPadBufferSize(static_cast<unsigned int>(pad_buffer));
+    }
+
+    if (ImGui::BeginTable("gc-slots", 4))
+    {
+      ImGui::TableNextColumn();
+      ImGui::Text("GC Pad 1");
+      ImGui::TableNextColumn();
+      ImGui::Text("GC Pad 2");
+      ImGui::TableNextColumn();
+      ImGui::Text("GC Pad 3");
+      ImGui::TableNextColumn();
+      ImGui::Text("GC Pad 4");
+
+      ImGui::TableNextRow();
+
+      auto gc_mapping = g_netplay_server->GetPadMapping();
+      for (uint32_t port = 0; port < 4; port++)
+      {
+        ImGui::TableNextColumn();
+        std::string selected_player = "None";
+        for (auto player : players)
+        {
+          if (gc_mapping[port] == player->pid)
+          {
+            selected_player = player->name;
+            break;
+          }
+        }
+
+        if (ImGui::BeginCombo(std::format("##port-{}", port).c_str(), selected_player.c_str()))
+        {
+          for (auto& player : players)
+          {
+            if (ImGui::Selectable(player->name.c_str(), gc_mapping[port] == player->pid))
+            {
+              gc_mapping[port] = player->pid;
+              g_netplay_server->SetPadMapping(gc_mapping);
+            }
+          }
+
+          if (ImGui::Selectable("None", gc_mapping[port] == 0))
+          {
+            gc_mapping[port] = 0;
+            g_netplay_server->SetPadMapping(gc_mapping);
+          }
+
+          ImGui::EndCombo();
+        }
+      }
+
+      ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+
+    if (ImGui::BeginTable("wii-slots", 4))
+    {
+      ImGui::TableNextColumn();
+      ImGui::Text("Wii Pad 1");
+      ImGui::TableNextColumn();
+      ImGui::Text("Wii Pad 2");
+      ImGui::TableNextColumn();
+      ImGui::Text("Wii Pad 3");
+      ImGui::TableNextColumn();
+      ImGui::Text("Wii Pad 4");
+
+      ImGui::TableNextRow();
+
+      auto wii_mapping = g_netplay_server->GetWiimoteMapping();
+      for (uint32_t port = 0; port < 4; port++)
+      {
+        std::string selected_player = "None";
+        for (auto player : players)
+        {
+          if (wii_mapping[port] == player->pid)
+          {
+            selected_player = player->name;
+            break;
+          }
+        }
+
+        ImGui::TableNextColumn();
+        if (ImGui::BeginCombo(std::format("##wiiport-{}", port).c_str(), selected_player.c_str()))
+        {
+          for (auto& player : g_netplay_client->GetPlayers())
+          {
+            if (ImGui::Selectable(player->name.c_str(), wii_mapping[port] == player->pid))
+            {
+              wii_mapping[port] = player->pid;
+              g_netplay_server->SetWiimoteMapping(wii_mapping);
+            }
+          }
+
+          if (ImGui::Selectable("None", wii_mapping[port] == 0))
+          {
+            wii_mapping[port] = 0;
+            g_netplay_server->SetWiimoteMapping(wii_mapping);
+          }
+
+          ImGui::EndCombo();
+        }
+      }
+
+      ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+  }
 }
 
 }  // namespace ImGuiFrontend

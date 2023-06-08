@@ -1,10 +1,11 @@
 #pragma once
 
-#include "ImGuiNetplay.h"
-
-#include "Common/Flag.h"
 #include "Core/NetPlayClient.h"
 #include "Core/NetPlayServer.h"
+
+#include "UICommon/ImGuiMenu/ImGuiFrontend.h"
+#include "UICommon/ImGuiMenu/ImGuiNetplay.h"
+#include "Common/Flag.h"
 
 namespace UWP {
 extern Common::Flag g_shutdown_requested;

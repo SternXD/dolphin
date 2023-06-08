@@ -95,11 +95,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Host.h" />
-    <ClInclude Include="ImGuiFrontend.h" />
-    <ClInclude Include="ImGuiNetplay.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UWPUtils.h" />
-    <ClInclude Include="WinRTKeyboard.h" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -119,9 +116,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="ImGuiFrontend.cpp" />
-    <ClCompile Include="ImGuiNetplay.cpp" />
-    <ClCompile Include="WinRTKeyboard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DolphinWinRT_TemporaryKey.pfx" />

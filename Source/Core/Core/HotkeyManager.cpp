@@ -41,6 +41,7 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
 #ifdef USE_RETRO_ACHIEVEMENTS
     _trans("Open Achievements"),
 #endif  // USE_RETRO_ACHIEVEMENTS
+    _trans("Show On-Screen Menu"),
 
     _trans("Volume Down"),
     _trans("Volume Up"),
@@ -512,4 +513,11 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
 
   set_key_expression(HK_SKYLANDERS_PORTAL, hotkey_string({"Ctrl", "P"}));
   set_key_expression(HK_INFINITY_BASE, hotkey_string({"Ctrl", "I"}));
+
+  // On-Screen Menu
+#ifdef WINRT_XBOX
+  set_key_expression(
+      HK_TOGGLE_ONSCREEN_MENU,
+      "`WGInput/0/Xbox One Game Controller:Thumb L` & `WGInput/0/Xbox One Game Controller:View`");
+#endif
 }
