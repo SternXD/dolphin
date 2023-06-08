@@ -162,7 +162,6 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       }
 
       // Make sure we've shut down properly.
-
       m_running.Clear();
 
       // If there's another frontend, boot to that.
