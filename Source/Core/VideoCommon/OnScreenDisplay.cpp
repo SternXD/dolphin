@@ -217,7 +217,7 @@ void DrawInGameMenu()
                                  ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * frame_scale));
   if (ImGui::Begin("Pause Menu", nullptr,
                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
+                       ImGuiWindowFlags_NoScrollbar))
   {
     if (ImGui::BeginTabBar("InGameTabs"))
     {
