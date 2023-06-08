@@ -127,6 +127,7 @@ void ImGuiNetPlay::DrawLobbyWindow()
 
       if (ImGui::Button("Exit Lobby"))
       {
+        g_netplay_client->Stop();
         g_netplay_client = nullptr;
         g_netplay_server = nullptr;
       }
@@ -524,11 +525,6 @@ void ImGuiNetPlay::Reset()
 void ImGuiNetPlay::StopGame()
 {
   g_netplay_client->StopGame();
-
-  if (Core::IsRunningAndStarted())
-  {
-    UWP::g_shutdown_requested.Set();
-  }
 }
 
 bool ImGuiNetPlay::IsHosting() const
@@ -576,13 +572,6 @@ void ImGuiNetPlay::OnMsgStartGame()
 void ImGuiNetPlay::OnMsgStopGame()
 {
   g_netplay_client->StopGame();
-
-  if (Core::IsRunningAndStarted()) {
-#ifdef WINRT_XBOX
-    // todo make the host manage this
-    UWP::g_shutdown_requested.Set();
-#endif
-  }
 }
 
 void ImGuiNetPlay::OnMsgPowerButton()
