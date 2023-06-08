@@ -50,6 +50,9 @@ void AddTypedMessage(MessageType type, std::string message, u32 ms = Duration::S
 void DrawMessages();
 void ClearMessages();
 
+void DrawInGameMenu();
+
 void SetObscuredPixelsLeft(int width);
 void SetObscuredPixelsTop(int height);
+void ToggleShowSettings();
 }  // namespace OSD
