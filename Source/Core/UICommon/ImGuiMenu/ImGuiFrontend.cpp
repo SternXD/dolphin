@@ -263,7 +263,7 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
           {
             int idx = -1 + (int) m_ccat;
             if (idx < 1)
-              idx = 1;
+              idx = -1 + (int) CCount;
 
             m_ccat = (CarouselCategory) idx;
           }
@@ -282,7 +282,7 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
           {
             int idx = 1 + (int) m_ccat;
             if (idx >= CCount)
-              idx = -1 + (int) CCount;
+              idx = 1;
 
             m_ccat = (CarouselCategory) idx;
           }
@@ -327,7 +327,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     {
       if (device && device->IsValid() && !m_state.controlsDisabled)
       {
-        if (TryInput("View", device))
+        if (TryInput("Menu", device))
         {
           if (!m_state.menuPressed)
           {
@@ -348,7 +348,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
 
           break;
         }
-        else if (TryInput("Menu", device))
+        else if (TryInput("View", device))
         {
           if (!m_state.menuPressed)
           {
@@ -1592,9 +1592,6 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
     break;
   }
 
-  if (m_selectedGameIdx > filtered_games.size())
-    m_selectedGameIdx = static_cast<int>(filtered_games.size()) - 1;
-
   if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f)
   {
     if (filtered_games.size() != 0)
@@ -1771,6 +1768,9 @@ void ImGuiFrontend::LoadGameList()
 void ImGuiFrontend::LoadThemes()
 {
   std::string selected_theme = Config::Get(Config::FRONTEND_SELECTED_THEME);
+
+  m_themes.clear();
+  m_selected_theme = nullptr;
 
   RecurseForThemes("Sys/FrontendThemes/");
   RecurseForThemes(File::GetUserPath(D_THEMES_IDX));
