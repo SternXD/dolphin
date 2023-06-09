@@ -34,11 +34,26 @@
     <Image Include="Assets\LockScreenLogo.scale-200.png">
       <Filter>Assets</Filter>
     </Image>
-    <Image Include="Assets\background.png">
-      <Filter>Assets</Filter>
+    <Image Include="Sys\FrontendThemes\Default\carousel_background_all.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
     </Image>
-    <Image Include="Assets\background_list.png">
-      <Filter>Assets</Filter>
+    <Image Include="Sys\FrontendThemes\Default\carousel_background_gamecube.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Image>
+    <Image Include="Sys\FrontendThemes\Default\carousel_background_other.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Image>
+    <Image Include="Sys\FrontendThemes\Default\carousel_background_wii.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Image>
+    <Image Include="Sys\FrontendThemes\Default\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Image>
+    <Image Include="Sys\FrontendThemes\Default\list_UI.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Image>
+    <Image Include="Sys\FrontendThemes\Default\menu_background.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
@@ -77,6 +92,12 @@
     </Filter>
     <Filter Include="Sys\Profiles\Wiimote">
       <UniqueIdentifier>{eb75cefa-df75-44fc-9b5c-4ddded8c0e7d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sys\FrontendThemes">
+      <UniqueIdentifier>{ca17674b-0272-42fc-bef3-a9866ea65eb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sys\FrontendThemes\Default">
+      <UniqueIdentifier>{bc0343f4-cb07-4378-844b-84e9d3ed4cc0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -44,6 +44,7 @@
 #include "Core/NetPlayServer.h"
 #include "Core/ConfigManager.h"
 #include "Core/Config/WiimoteSettings.h"
+#include "Core/Config/UISettings.h"
 
 #include "Common/FileUtil.h"
 #include "Common/Image.h"
@@ -78,6 +79,10 @@ std::vector<std::string> m_paths;
 bool m_show_path_warning = false;
 float m_frameScale = 1.0f;
 int m_selectedGameIdx;
+UIState m_state = UIState();
+CarouselCategory m_ccat = CarouselCategory::CAll;
+std::map<std::string, FrontendTheme> m_themes;
+FrontendTheme* m_selected_theme;
 
 ImGuiFrontend::ImGuiFrontend()
 {
@@ -163,6 +168,7 @@ ImGuiFrontend::ImGuiFrontend()
 
   PopulateControls();
   LoadGameList();
+  LoadThemes();
 }
 
 void ImGuiFrontend::PopulateControls()
@@ -249,19 +255,17 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
 
         input_handled = true;
       }
-      else if (m_games.size() > 10 && TryInput("Bumper L", device))
+      else if (TryInput("Bumper L", device))
       {
-        if (timeSinceLastInput > 500L)
+        if (timeSinceLastInput > 250L)
         {
-          int i = m_selectedGameIdx - 10;
-          if (i < 0)
+          if (!m_state.showListView && !m_state.showSettingsWindow && g_netplay_dialog == nullptr)
           {
-            // wrap around, total games + -index
-            m_selectedGameIdx = static_cast<int>(m_games.size()) + i;
-          }
-          else
-          {
-            m_selectedGameIdx = i;
+            int idx = -1 + (int) m_ccat;
+            if (idx < 1)
+              idx = 1;
+
+            m_ccat = (CarouselCategory) idx;
           }
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
@@ -270,22 +274,21 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
 
         input_handled = true;
       }
-      else if (m_games.size() > 10 && TryInput("Bumper R", device))
+      else if (TryInput("Bumper R", device))
       {
-        if (timeSinceLastInput > 500L)
+        if (timeSinceLastInput > 250L)
         {
-          int i = m_selectedGameIdx + 10;
-          if (i >= m_games.size())
+          if (!m_state.showListView && !m_state.showSettingsWindow && g_netplay_dialog == nullptr)
           {
-            // wrap around, i - total games
-            m_selectedGameIdx = i - static_cast<int>(m_games.size());
-          }
-          else
-          {
-            m_selectedGameIdx = i;
+            int idx = 1 + (int) m_ccat;
+            if (idx >= CCount)
+              idx = -1 + (int) CCount;
+
+            m_ccat = (CarouselCategory) idx;
           }
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
         }
 
         input_handled = true;
@@ -306,7 +309,6 @@ FrontendResult ImGuiFrontend::RunUntilSelection()
 FrontendResult ImGuiFrontend::RunMainLoop()
 {
   FrontendResult selection;
-  UIState state = UIState();
 
   if (g_netplay_dialog)
   {
@@ -323,14 +325,14 @@ FrontendResult ImGuiFrontend::RunMainLoop()
 
     for (auto device : m_controllers)
     {
-      if (device && device->IsValid() && !state.controlsDisabled)
+      if (device && device->IsValid() && !m_state.controlsDisabled)
       {
         if (TryInput("View", device))
         {
-          if (!state.menuPressed)
+          if (!m_state.menuPressed)
           {
-            state.showSettingsWindow = !state.showSettingsWindow;
-            state.menuPressed = true;
+            m_state.showSettingsWindow = !m_state.showSettingsWindow;
+            m_state.menuPressed = true;
             LoadGameList();
           }
 
@@ -338,17 +340,17 @@ FrontendResult ImGuiFrontend::RunMainLoop()
         }
         else if (TryInput("Button X", device))
         {
-          if (!state.menuPressed)
+          if (!m_state.menuPressed)
           {
-            state.showListView = !state.showListView;
-            state.menuPressed = true;
+            m_state.showListView = !m_state.showListView;
+            m_state.menuPressed = true;
           }
 
           break;
         }
         else if (TryInput("Menu", device))
         {
-          if (!state.menuPressed)
+          if (!m_state.menuPressed)
           {
             if (g_netplay_dialog)
             {
@@ -361,14 +363,14 @@ FrontendResult ImGuiFrontend::RunMainLoop()
               g_netplay_dialog = std::make_shared<ImGuiNetPlay>(this, m_games, m_frameScale);
             }
 
-            state.menuPressed = true;
+            m_state.menuPressed = true;
           }
 
           break;
         }
         else
         {
-          state.menuPressed = false;
+          m_state.menuPressed = false;
         }
       }
     }
@@ -403,7 +405,21 @@ FrontendResult ImGuiFrontend::RunMainLoop()
                          ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
                          ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav))
     {
-      ImGui::Image(GetOrCreateBackgroundTex(state.showListView), ImGui::GetIO().DisplaySize);
+      ImGui::Image(m_selected_theme->GetBackground(m_state.currentBG).get(),
+                   ImGui::GetIO().DisplaySize);
+
+      if (m_state.showListView)
+      {
+        ImGui::SetCursorPos(ImVec2(0, 0));
+        ImGui::Image(m_selected_theme->GetBackground(BG_List_UI).get(), ImGui::GetIO().DisplaySize);
+      }
+      else if (!m_state.showSettingsWindow && g_netplay_dialog == nullptr)
+      {
+        ImGui::SetCursorPos(ImVec2(0, 0));
+        ImGui::Image(m_selected_theme->GetBackground(BG_Carousel_UI).get(),
+                     ImGui::GetIO().DisplaySize);
+      }
+
       ImGui::End();
     }
     ImGui::PopStyleVar(3);
@@ -411,6 +427,8 @@ FrontendResult ImGuiFrontend::RunMainLoop()
 
     if (g_netplay_dialog != nullptr)
     {
+      m_state.currentBG = BG_Netplay;
+
       auto result = g_netplay_dialog->Draw();
       if (result == BootGame)
       {
@@ -422,8 +440,10 @@ FrontendResult ImGuiFrontend::RunMainLoop()
         g_netplay_dialog = nullptr;
       }
     }
-    else if (state.showSettingsWindow)
+    else if (m_state.showSettingsWindow)
     {
+      m_state.currentBG = BG_Menu;
+
       ImGui::SetNextWindowSize(ImVec2(540 * m_frameScale, 425 * m_frameScale));
       ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frameScale,
                                      ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frameScale));
@@ -431,12 +451,14 @@ FrontendResult ImGuiFrontend::RunMainLoop()
                        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
       {
-        DrawSettingsMenu(&state, m_frameScale);
+        DrawSettingsMenu(&m_state, m_frameScale);
         ImGui::End();
       }
     }
-    else if (state.showListView)
+    else if (m_state.showListView)
     {
+      m_state.currentBG = BG_List;
+
       selection = CreateListPage();
       if (selection.game_result != nullptr || selection.netplay)
       {
@@ -445,6 +467,8 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     }
     else
     {
+      m_state.currentBG = static_cast<ThemeBG>(m_ccat);
+
       selection = CreateMainPage();
       if (selection.game_result != nullptr || selection.netplay)
       {
@@ -452,8 +476,8 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       }
     }
 
-    if (!state.controlsDisabled)
-      RefreshControls(!state.showSettingsWindow);
+    if (!m_state.controlsDisabled)
+      RefreshControls(!m_state.showSettingsWindow);
 
     g_presenter->Present();
   }
@@ -562,6 +586,23 @@ void CreateInterfaceTab(UIState* state)
   {
     Config::SetBaseOrCurrent(Config::GFX_OVERLAY_STATS, showStats);
     Config::Save();
+  }
+
+  ImGui::Spacing();
+
+  if (ImGui::BeginCombo("Theme", m_selected_theme->GetName().c_str()))
+  {
+    for (auto& theme : m_themes)
+    {
+      if (ImGui::Selectable(theme.first.c_str(),
+                            m_selected_theme->GetName() == theme.second.GetName()))
+      {
+        m_selected_theme = &theme.second;
+        Config::SetBaseOrCurrent(Config::FRONTEND_SELECTED_THEME, theme.first);
+      }
+    }
+
+    ImGui::EndCombo();
   }
 }
 
@@ -1431,7 +1472,6 @@ FrontendResult ImGuiFrontend::CreateListPage()
   ImGui::SetNextWindowSize(ImVec2(540 * m_frameScale, 425 * m_frameScale));
   ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frameScale,
                                  ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frameScale));
-  ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0.60f));
 
   if (ImGui::Begin("Dolphin Emulator", nullptr,
                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
@@ -1445,8 +1485,6 @@ FrontendResult ImGuiFrontend::CreateListPage()
       return FrontendResult(game);
     }
   }
-
-  ImGui::PopStyleColor();
 
   return FrontendResult();
 }
@@ -1519,42 +1557,80 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
 
 std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
 {
+  std::vector<std::shared_ptr<UICommon::GameFile>> filtered_games;
+  switch (m_ccat)
+  {
+  case CAll:
+    filtered_games = m_games;
+    break;
+  case CWii:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() != DiscIO::Platform::WiiDisc)
+        continue;
+
+      filtered_games.push_back(game);
+    }
+    break;
+  case CGC:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() != DiscIO::Platform::GameCubeDisc)
+        continue;
+
+      filtered_games.push_back(game);
+    }
+    break;
+  case COther:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() != DiscIO::Platform::ELFOrDOL || game->GetPlatform() != DiscIO::Platform::WiiWAD)
+        continue;
+
+      filtered_games.push_back(game);
+    }
+    break;
+  }
+
+  if (m_selectedGameIdx > filtered_games.size())
+    m_selectedGameIdx = static_cast<int>(filtered_games.size()) - 1;
+
   if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f)
   {
-    if (m_games.size() != 0)
-      return m_games[m_selectedGameIdx];
+    if (filtered_games.size() != 0)
+      return filtered_games[m_selectedGameIdx];
   }
 
   // Display 5 games, 2 games to the left of the selection, 2 games to the right.
   for (int i = m_selectedGameIdx - 2; i < m_selectedGameIdx + 3; i++)
   {
     int idx = i;
-    if (m_games.size() >= 4)
+    if (filtered_games.size() >= 4)
     {
       if (i < 0)
       {
         // wrap around, total games + -index
-        idx = static_cast<int>(m_games.size()) + i;
+        idx = static_cast<int>(filtered_games.size()) + i;
       }
-      else if (i >= m_games.size())
+      else if (i >= filtered_games.size())
       {
         // wrap around, i - total games
-        idx = i - static_cast<int>(m_games.size());
+        idx = i - static_cast<int>(filtered_games.size());
       }
     }
     else
     {
       if (i < 0)
       {
-        idx = static_cast<int>(m_games.size()) + i;
+        idx = static_cast<int>(filtered_games.size()) + i;
       }
-      else if (i >= m_games.size())
+      else if (i >= filtered_games.size())
       {
         continue;
       }
     }
 
-    if (idx < 0 || idx >= m_games.size())
+    if (idx < 0 || idx >= filtered_games.size())
       continue;
 
     ImVec4 border_col;
@@ -1563,17 +1639,17 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
     {
       border_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
       // The background image doesn't fit 2 games very well when scaled up.
-      selectedScale = m_games.size() > 2 ? 1.15 : 1.0f;
+      selectedScale = filtered_games.size() > 2 ? 1.15 : 1.0f;
     }
     else
     {
       border_col = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    AbstractTexture* handle = GetHandleForGame(m_games[idx]);
+    AbstractTexture* handle = GetHandleForGame(filtered_games[idx]);
     ImGui::SameLine();
     ImGui::BeginChild(
-        m_games[idx]->GetFilePath().c_str(),
+        filtered_games[idx]->GetFilePath().c_str(),
         ImVec2((160 + 25) * m_frameScale * selectedScale, 250 * m_frameScale * selectedScale), true,
         ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar);
@@ -1583,11 +1659,11 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
       ImGui::Image((ImTextureID) handle,
           ImVec2(160.f * m_frameScale * selectedScale, 224.f * m_frameScale * selectedScale),
           ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), border_col);
-      ImGui::Text(m_games[idx]->GetName(m_title_database).c_str());
+      ImGui::Text(filtered_games[idx]->GetName(m_title_database).c_str());
     }
     else
     {
-      ImGui::Text(m_games[idx]->GetName(m_title_database).c_str());
+      ImGui::Text(filtered_games[idx]->GetName(m_title_database).c_str());
     }
 
     ImGui::EndChild();
@@ -1602,7 +1678,7 @@ AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameF
   auto result = m_cover_textures.find(game_id);
   if (m_cover_textures.find(game_id) == m_cover_textures.end())
   {
-    std::unique_ptr<AbstractTexture> texture = CreateCoverTexture(game);
+    std::shared_ptr<AbstractTexture> texture = CreateCoverTexture(game);
     if (texture == nullptr)
     {
       AbstractTexture* missing = GetOrCreateMissingTex();
@@ -1619,102 +1695,43 @@ AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameF
   return result->second.get();
 }
 
-std::unique_ptr<AbstractTexture>
+std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path)
+{
+  std::string png;
+  if (!File::ReadFileToString(path, png))
+    return {};
+
+  std::vector<uint8_t> buffer = {png.begin(), png.end()};
+  if (buffer.empty())
+    return {};
+
+  std::vector<uint8_t> data;
+  u32 width, height;
+  Common::LoadPNG(buffer, &data, &width, &height);
+
+  TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0);
+
+  std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, path);
+  if (!tex)
+  {
+    PanicAlertFmt("Failed to create ImGui texture");
+    return {};
+  }
+
+  tex->Load(0, width, height, width, data.data(), sizeof(u32) * width * height);
+
+  return std::move(tex);
+}
+
+std::shared_ptr<AbstractTexture>
 ImGuiFrontend::CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game)
 {
   if (!File::Exists(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"))
   {
     game->DownloadDefaultCover();
   }
-  
-  std::string png;
-  if (!File::ReadFileToString(
-          File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png", png))
-    return {};
-  
-  std::vector<uint8_t> buffer = { png.begin(), png.end() };
-  if (buffer.empty())
-    return {};
-  
-  std::vector<uint8_t> data;
-  u32 width, height;
-  Common::LoadPNG(buffer, &data, &width, &height);
 
-  TextureConfig cover_tex_config(width, height, 1, 1, 1,
-                            AbstractTextureFormat::RGBA8, 0);
-
-  std::unique_ptr<AbstractTexture> cover_tex =
-      g_gfx->CreateTexture(cover_tex_config, game->GetShortName());
-  if (!cover_tex)
-  {
-    PanicAlertFmt("Failed to create ImGui texture");
-    return {};
-  }
-
-  cover_tex->Load(0, width, height, width, data.data(),
-                 sizeof(u32) * width * height);
-
-  return std::move(cover_tex);
-}
-
-AbstractTexture* ImGuiFrontend::GetOrCreateBackgroundTex(bool list_view)
-{
-  if (list_view)
-  {
-    if (m_background_list_tex != nullptr)
-      return m_background_list_tex.get();
-  }
-  else
-  {
-    if (m_background_tex != nullptr)
-      return m_background_tex.get();
-  }
-  
-  auto user_folder = File::GetUserPath(0);
-  std::string bg_path = user_folder + (list_view ? "/background_list.png" : "/background.png");
-  
-  if (!File::Exists(bg_path))
-  {
-    bg_path = list_view ? "Assets/background_list.png" : "Assets/background.png";
-  
-    if (!File::Exists(bg_path))
-      return nullptr;
-  }
-    
-  std::string png;
-  if (!File::ReadFileToString(bg_path, png))
-    return {};
-  
-  std::vector<uint8_t> buffer = {png.begin(), png.end()};
-  if (buffer.empty())
-    return {};
-  
-  std::vector<uint8_t> data;
-  u32 width, height;
-  Common::LoadPNG(buffer, &data, &width, &height);
-
-  TextureConfig bg_tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0);
-
-  std::unique_ptr<AbstractTexture> bg_tex =
-      g_gfx->CreateTexture(bg_tex_config, list_view ? "background1" : "background2");
-  if (!bg_tex)
-  {
-    PanicAlertFmt("Failed to create ImGui texture");
-    return {};
-  }
-
-  bg_tex->Load(0, width, height, width, data.data(), sizeof(u32) * width * height);
-
-  if (list_view)
-  {
-    m_background_list_tex = std::move(bg_tex);
-    return m_background_list_tex.get();
-  }
-  else
-  {
-    m_background_tex = std::move(bg_tex);
-    return m_background_tex.get();
-  }
+  return std::move(CreateTextureFromPath(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"));
 }
 
 AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
@@ -1722,29 +1739,7 @@ AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
   if (m_missing_tex != nullptr)
     return m_missing_tex.get();
   
-  std::string png;
-  if (!File::ReadFileToString("Assets/missing.png", png))
-    return {};
-  
-  std::vector<uint8_t> buffer = {png.begin(), png.end()};
-  if (buffer.empty())
-    return {};
-  
-  std::vector<uint8_t> data;
-  u32 width, height;
-  Common::LoadPNG(buffer, &data, &width, &height);
-  
-  TextureConfig missing_tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0);
-
-  std::unique_ptr<AbstractTexture> missing_tex =
-      g_gfx->CreateTexture(missing_tex_config, "missing");
-  if (!missing_tex)
-  {
-    PanicAlertFmt("Failed to create ImGui texture");
-    return {};
-  }
-
-  missing_tex->Load(0, width, height, width, data.data(), sizeof(u32) * width * height);
+  auto missing_tex = CreateTextureFromPath("Assets/missing.png");
   m_missing_tex = std::move(missing_tex);
 
   return m_missing_tex.get();
@@ -1757,13 +1752,13 @@ void ImGuiFrontend::LoadGameList()
   m_paths = Config::GetIsoPaths();
   for (auto dir : m_paths)
   {
-    RecurseFolder(dir);
+    RecurseFolderForGames(dir);
   }
 
 #ifdef WINRT_XBOX
   // Load from the default path
   auto localCachePath = winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
-  RecurseFolder(localCachePath);
+  RecurseFolderForGames(localCachePath);
 #endif
 
   std::sort(m_games.begin(), m_games.end(),
@@ -1773,7 +1768,44 @@ void ImGuiFrontend::LoadGameList()
   });
 }
 
-void ImGuiFrontend::RecurseFolder(std::string path)
+void ImGuiFrontend::LoadThemes()
+{
+  std::string selected_theme = Config::Get(Config::FRONTEND_SELECTED_THEME);
+
+  RecurseForThemes("Sys/FrontendThemes/");
+  RecurseForThemes(File::GetUserPath(D_THEMES_IDX));
+  
+  if (!m_selected_theme)
+  {
+    m_selected_theme = &m_themes["Default"];
+  }
+}
+
+void ImGuiFrontend::RecurseForThemes(std::string path)
+{
+  std::string selected_theme = Config::Get(Config::FRONTEND_SELECTED_THEME);
+
+  for (auto folder : std::filesystem::directory_iterator(path))
+  {
+    if (!folder.is_directory())
+    {
+      continue;
+    }
+
+    FrontendTheme theme{};
+    if (theme.TryLoad(folder.path().string()))
+    {
+      m_themes.emplace(theme.GetName(), theme);
+
+      if (theme.GetName() == selected_theme)
+      {
+        m_selected_theme = &m_themes[theme.GetName()];
+      }
+    }
+  }
+}
+
+void ImGuiFrontend::RecurseFolderForGames(std::string path)
 {
   try
   {
@@ -1781,7 +1813,7 @@ void ImGuiFrontend::RecurseFolder(std::string path)
     {
       if (file.is_directory())
       {
-        RecurseFolder(file.path().string());
+        RecurseFolderForGames(file.path().string());
         continue;
       }
 
@@ -1893,7 +1925,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.15\n\n"
+          "Dolphin Emulator on UWP - Version 1.16\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend, developed by SirMangler.\n"
           "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"
@@ -1903,5 +1935,68 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
 
     ImGui::EndChild();
   }
+}
+
+std::shared_ptr<AbstractTexture> FrontendTheme::GetBackground(ThemeBG cat)
+{
+  return m_textures[cat];
+}
+
+bool FrontendTheme::TryLoad(std::string path)
+{
+  const auto SetThemeOrBackup = [=](ThemeBG target, ThemeBG backup, std::string p) {
+    if (File::Exists(p))
+    {
+      auto bg = CreateTextureFromPath(p);
+      m_textures[target] = std::move(bg);
+    }
+
+    if (!m_textures[target])
+    {
+      m_textures[target] = m_textures[backup];
+    }
+  };
+
+  if (!File::Exists(path + "\\carousel_background_all.png") ||
+      !File::Exists(path + "\\menu_background.png") ||
+      !File::Exists(path + "\\list_ui.png") ||
+      !File::Exists(path + "\\carousel_ui.png"))
+  {
+    return false;
+  }
+
+  auto all_bg = CreateTextureFromPath(path + "\\carousel_background_all.png");
+  if (!all_bg)
+    return false;
+
+  m_textures[ThemeBG::BG_All] = all_bg;
+
+  auto menu_bg = CreateTextureFromPath(path + "\\menu_background.png");
+  if (!menu_bg)
+    return false;
+
+  m_textures[ThemeBG::BG_Menu] = menu_bg;
+
+  auto list_ui_bg= CreateTextureFromPath(path + "\\list_ui.png");
+  if (!list_ui_bg)
+    return false;
+
+  m_textures[ThemeBG::BG_List_UI] = list_ui_bg;
+
+  auto carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.png");
+  if (!carousel_ui_bg)
+    return false;
+
+  m_textures[ThemeBG::BG_Carousel_UI] = carousel_ui_bg;
+
+  SetThemeOrBackup(BG_Wii, BG_All, path + "\\carousel_background_wii.png");
+  SetThemeOrBackup(BG_GC, BG_All, path + "\\carousel_background_gamecube.png");
+  SetThemeOrBackup(BG_Other, BG_All, path + "\\carousel_background_other.png");
+  SetThemeOrBackup(BG_List, BG_Menu, path + "\\menu_background_list.png");
+  SetThemeOrBackup(BG_Netplay, BG_Menu, path + "\\menu_background_netplay.png");
+
+  m_name = std::filesystem::path(path).filename().string();
+
+  return true;
 }
 }  // namespace ImGuiFrontend

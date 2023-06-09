@@ -26,6 +26,29 @@ enum SelectedTab
   About
 };
 
+enum ThemeBG
+{
+  BG_All = 1,
+  BG_Wii,
+  BG_GC,
+  BG_Other,
+  BG_Menu,
+  BG_List,
+  BG_Netplay,
+  BG_List_UI,
+  BG_Carousel_UI,
+  BG_COUNT
+};
+
+enum CarouselCategory
+{
+  CAll = 1,
+  CWii = 2,
+  CGC = 3,
+  COther = 4,
+  CCount
+};
+
 class UIState
 {
 public:
@@ -35,6 +58,8 @@ public:
   bool menuPressed = false;
   std::string selectedPath;
   SelectedTab selectedTab = General;
+  ThemeBG currentBG = BG_All;
+  CarouselCategory carouselCat = CAll;
 };
 
 class FrontendResult
@@ -53,6 +78,18 @@ public:
     game_result = game;
     netplay = false;
   }
+};
+
+class FrontendTheme
+{
+public:
+  std::shared_ptr<AbstractTexture> GetBackground(ThemeBG cat);
+  bool TryLoad(std::string path);
+  std::string GetName() { return m_name; }
+
+private:
+  std::shared_ptr<AbstractTexture> m_textures[ThemeBG::BG_COUNT];
+  std::string m_name;
 };
 
 class ImGuiFrontend
@@ -75,22 +112,23 @@ private:
   std::shared_ptr<UICommon::GameFile> CreateGameList();
 
   void LoadGameList();
-  void RecurseFolder(std::string path);
+  void LoadThemes();
+  void RecurseForThemes(std::string path);
+  void RecurseFolderForGames(std::string path);
   void AddGameFolder(std::string path);
   bool TryInput(std::string expression, std::shared_ptr<ciface::Core::Device> device);
 
-  AbstractTexture* GetOrCreateBackgroundTex(bool list_view);
   AbstractTexture* GetOrCreateMissingTex();
   AbstractTexture* GetHandleForGame(std::shared_ptr<UICommon::GameFile> game);
-  std::unique_ptr<AbstractTexture> CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game);
+  std::shared_ptr<AbstractTexture> CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game);
 
   std::vector<std::shared_ptr<ciface::Core::Device>> m_controllers;
   std::vector<std::shared_ptr<UICommon::GameFile>> m_games;
-  std::unordered_map<std::string, std::unique_ptr<AbstractTexture>> m_cover_textures;
+  std::unordered_map<std::string, std::shared_ptr<AbstractTexture>> m_cover_textures;
   u64 m_imgui_last_frame_time;
 
   std::unique_ptr<AbstractTexture> m_background_tex, m_background_list_tex;
-  std::unique_ptr<AbstractTexture> m_missing_tex;
+  std::shared_ptr<AbstractTexture> m_missing_tex;
 
   bool m_direction_pressed = false;
   std::chrono::high_resolution_clock::time_point m_scroll_last =
@@ -113,4 +151,5 @@ void CreatePathsTab(UIState* state);
 void CreateWiiPort(int index, std::vector<std::string> devices);
 void CreateGCPort(int index, std::vector<std::string> devices);
 
+std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path);
 }  // namespace ImGuiFrontend
