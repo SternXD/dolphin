@@ -20,5 +20,7 @@ extern const Info<bool> MAIN_USE_GAME_COVERS;
 extern const Info<bool> MAIN_FOCUSED_HOTKEYS;
 extern const Info<bool> MAIN_RECURSIVE_ISO_PATHS;
 extern const Info<std::string> MAIN_CURRENT_STATE_PATH;
+extern const Info<std::string> FRONTEND_SELECTED_THEME;
+
 
 }  // namespace Config
