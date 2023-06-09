@@ -262,21 +262,20 @@ void DrawInGameMenu()
             if (ImGui::Button(std::format("Load State in Port {}", i).c_str()))
             {
               Core::RunOnCPUThread([i] {
+                s_show_menu = false;
                 Core::SetState(Core::State::Running);
                 State::Load(i);
               }, false);
-
-              s_show_menu = false;
             }
 
             if (ImGui::Button(std::format("Save State in Port {}", i).c_str()))
             {
               Core::RunOnCPUThread([i] {
+                s_show_menu = false;
+                Core::SetState(Core::State::Running);
+
                 State::Save(i);
               }, false);
-
-              s_show_menu = false;
-              Core::SetState(Core::State::Running);
             }
           }
 
