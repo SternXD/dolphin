@@ -321,7 +321,6 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
         winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessAllIfPresent);
 
-
     for (auto device : m_controllers)
     {
       if (device && device->IsValid() && !state.controlsDisabled)
@@ -458,6 +457,19 @@ FrontendResult ImGuiFrontend::RunMainLoop()
 
     g_presenter->Present();
   }
+
+  ImGui::SetNextWindowSize(ImVec2(100 * m_frameScale, 50 * m_frameScale));
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (100 / 2) * m_frameScale,
+                                 ImGui::GetIO().DisplaySize.y / 2 - (50 / 2) * m_frameScale));
+  if (ImGui::Begin("Loading..", nullptr,
+                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
+                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    ImGui::Text("Loading..");
+    ImGui::End();
+  }
+
+  g_presenter->Present();
 
   return selection;
 }
