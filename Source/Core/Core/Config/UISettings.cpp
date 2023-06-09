@@ -16,5 +16,6 @@ const Info<bool> MAIN_USE_GAME_COVERS{{System::Main, "General", "UseGameCovers"}
 const Info<bool> MAIN_FOCUSED_HOTKEYS{{System::Main, "General", "HotkeysRequireFocus"}, true};
 const Info<bool> MAIN_RECURSIVE_ISO_PATHS{{System::Main, "General", "RecursiveISOPaths"}, false};
 const Info<std::string> MAIN_CURRENT_STATE_PATH{{System::Main, "General", "CurrentStatePath"}, ""};
+const Info<std::string> FRONTEND_SELECTED_THEME{{System::Main, "General", "FrontendTheme"}, ""};
 
 }  // namespace Config
