@@ -126,9 +126,6 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           Core::Stop();
           Core::Shutdown();
 
-          CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
-              CoreProcessEventsOption::ProcessAllIfPresent);
-
           break;
         }
 
@@ -158,7 +155,9 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
             CoreProcessEventsOption::ProcessAllIfPresent);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        constexpr u32 INTERVAL_MS = 1000 / 30;
+        constexpr auto INTERVAL = std::chrono::milliseconds(INTERVAL_MS);
+        std::this_thread::sleep_for(INTERVAL);
       }
 
       // Make sure we've shut down properly.
