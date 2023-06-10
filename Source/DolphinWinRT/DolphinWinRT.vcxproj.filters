@@ -34,27 +34,6 @@
     <Image Include="Assets\LockScreenLogo.scale-200.png">
       <Filter>Assets</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_all.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_gamecube.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_other.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_wii.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\carousel_ui.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\list_UI.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Default\menu_background.png">
-      <Filter>Sys\FrontendThemes\Default</Filter>
-    </Image>
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />
@@ -98,6 +77,9 @@
     </Filter>
     <Filter Include="Sys\FrontendThemes\Default">
       <UniqueIdentifier>{bc0343f4-cb07-4378-844b-84e9d3ed4cc0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sys\FrontendThemes\Flipper">
+      <UniqueIdentifier>{c03e2e1a-be33-45ee-8a1a-41f099d85c8c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -4856,6 +4838,48 @@
     <None Include="Sys\Profiles\Wiimote\Sideways.ini">
       <Filter>Sys\Profiles\Wiimote</Filter>
     </None>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_all.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_all.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_gamecube.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_gamecube.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_other.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_other.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_wii.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_wii.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\list_ui.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\list_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\menu_background.png">
+      <Filter>Sys\FrontendThemes\Default</Filter>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\menu_background.png">
+      <Filter>Sys\FrontendThemes\Flipper</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Sys\wiitdb-de.txt">
@@ -4897,5 +4921,9 @@
     <Text Include="Sys\Wii\shared2\wc24\mbox\Readme.txt">
       <Filter>Sys\Wii\shared2\wc24\mbox</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="Sys\Resources\NotoSansJP-Regular.ttf" />
+    <Font Include="Sys\Resources\Roboto-Regular.ttf" />
   </ItemGroup>
 </Project>

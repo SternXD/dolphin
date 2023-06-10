@@ -1,10 +1,5 @@
 // Copyright 2022 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
-// 
-//  This is a WIP version of an ImGui frontend by SirMangler for use in the UWP fork.
-//  This needs some cleaning up, right now it's something of a god class.
-//  Note: This is not intended to replace any official Dolphin 'big picture' UI, of which does not exist at the time of writing.
-//
 
 #pragma once
 
@@ -385,7 +380,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       {
         if (TryInput("Menu", device))
         {
-          if (!m_state.menuPressed)
+          if (!m_state.menuPressed && !m_state.showListView && !g_netplay_dialog)
           {
             m_state.showSettingsWindow = !m_state.showSettingsWindow;
             m_state.menuPressed = true;
@@ -396,7 +391,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
         }
         else if (TryInput("Button X", device))
         {
-          if (!m_state.menuPressed)
+          if (!m_state.menuPressed && !m_state.showSettingsWindow && !g_netplay_dialog)
           {
             m_state.showListView = !m_state.showListView;
             m_state.menuPressed = true;
@@ -406,7 +401,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
         }
         else if (TryInput("View", device))
         {
-          if (!m_state.menuPressed)
+          if (!m_state.menuPressed && !m_state.showListView && !m_state.showSettingsWindow)
           {
             if (g_netplay_dialog)
             {
@@ -1336,7 +1331,7 @@ void CreatePathsTab(UIState* state)
 
 void CreateWiiPort(int index, std::vector<std::string> devices)
 {
-  if (ImGui::BeginChild(std::format("gc-wii-{}", index).c_str(), ImVec2(-1, 75 * 75 * m_frame_scale),
+  if (ImGui::BeginChild(std::format("gc-wii-{}", index).c_str(), ImVec2(-1, 75 * m_frame_scale),
                         true))
   {
     auto controller = Wiimote::GetConfig()->GetController(index);

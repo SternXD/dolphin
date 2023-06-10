@@ -111,13 +111,6 @@
     <Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Image Include="Assets\StoreLogo.png" />
     <Image Include="Assets\Wide310x150Logo.scale-200.png" />
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_all.png" />
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_gamecube.png" />
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_other.png" />
-    <Image Include="Sys\FrontendThemes\Default\carousel_background_wii.png" />
-    <Image Include="Sys\FrontendThemes\Default\carousel_ui.png" />
-    <Image Include="Sys\FrontendThemes\Default\list_UI.png" />
-    <Image Include="Sys\FrontendThemes\Default\menu_background.png" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
@@ -4915,6 +4908,48 @@
       <DeploymentContent>true</DeploymentContent>
     </Text>
     <Text Include="Sys\Wii\shared2\wc24\mbox\Readme.txt">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_all.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_gamecube.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_other.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_background_wii.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\carousel_ui.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\list_ui.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Default\menu_background.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_all.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_gamecube.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_other.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_background_wii.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\carousel_ui.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\list_ui.png">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
+    <Text Include="Sys\FrontendThemes\Flipper\menu_background.png">
       <DeploymentContent>true</DeploymentContent>
     </Text>
   </ItemGroup>
