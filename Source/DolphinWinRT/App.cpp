@@ -92,6 +92,8 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         [](const winrt::Windows::Foundation::IInspectable&,
            const winrt::Windows::UI::Core::BackRequestedEventArgs& args) { args.Handled(true); });
 
+    Core::DeclareAsHostThread();
+
     while (true)
     {
       // ImGUI frontend
@@ -118,16 +120,14 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       {
         if (g_shutdown_requested.TestAndClear())
         {
-          UICommon::TriggerSTMPowerEvent();
-
-          if (Core::GetState() == Core::State::Paused)
-            Core::SetState(Core::State::Running);
-
           if (NetPlay::IsNetPlayRunning())
             NetPlay::SendPowerButtonEvent();
 
           Core::Stop();
           Core::Shutdown();
+
+          CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
+              CoreProcessEventsOption::ProcessAllIfPresent);
 
           break;
         }
@@ -291,6 +291,8 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         }
       }
     }
+
+    Core::DeclareAsHostThread();
 
     UICommon::SetUserDirectory(UWP::GetUserLocation());
     UICommon::CreateDirectories();

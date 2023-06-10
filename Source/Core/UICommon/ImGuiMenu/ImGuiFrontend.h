@@ -112,6 +112,7 @@ private:
   std::shared_ptr<UICommon::GameFile> CreateGameList();
 
   void LoadGameList();
+  void FilterGamesForCategory();
   void LoadThemes();
   void RecurseForThemes(std::string path);
   void RecurseFolderForGames(std::string path);
@@ -134,6 +135,9 @@ private:
   std::chrono::high_resolution_clock::time_point m_scroll_last =
       std::chrono::high_resolution_clock::now();
 
+  
+  std::vector<std::shared_ptr<UICommon::GameFile>> m_displayed_games;
+  CarouselCategory m_last_category = CarouselCategory::CCount; // Default to CCount to trigger an update
   std::string m_prev_list_search;
   std::vector<std::shared_ptr<UICommon::GameFile>> m_list_search_results;
   char m_list_search_buf[32];

@@ -48,13 +48,13 @@
   <Import Project="$(ExternalsDir)LZO\exports.props" />
   <Import Project="$(ExternalsDir)LZ4\exports.props" />
   <Import Project="$(ExternalsDir)mbedtls\exports.props" />
-  <Import Condition="'$(WINRT_XBOX)'=='0'" Project="$(ExternalsDir)mGBA\exports.props" />
+  <Import Project="$(ExternalsDir)mGBA\exports.props" />
   <Import Project="$(ExternalsDir)miniupnpc\exports.props" />
   <Import Project="$(ExternalsDir)minizip-ng\exports.props" />
   <Import Project="$(ExternalsDir)picojson\exports.props" />
   <Import Project="$(ExternalsDir)pugixml\exports.props" />
   <Import Project="$(ExternalsDir)rcheevos\exports.props" />
-  <Import Condition="'$(WINRT_XBOX)'=='0'" Project="$(ExternalsDir)SDL\exports.props" />
+  <Import Project="$(ExternalsDir)SDL\exports.props" />
   <Import Project="$(ExternalsDir)SFML\exports.props" />
   <Import Project="$(ExternalsDir)soundtouch\exports.props" />
   <Import Project="$(ExternalsDir)spirv_cross\exports.props" />

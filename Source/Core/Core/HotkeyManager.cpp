@@ -508,6 +508,6 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
 #ifdef WINRT_XBOX
   set_key_expression(
       HK_TOGGLE_ONSCREEN_MENU,
-      "`WGInput/0/Xbox One Game Controller:Thumb L` & `WGInput/0/Xbox One Game Controller:View`");
+      "`WGInput/0/Xbox One Game Controller:Thumb L` & `WGInput/0/Xbox One Game Controller:Thumb R`");
 #endif
 }

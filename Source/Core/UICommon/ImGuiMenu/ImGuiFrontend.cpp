@@ -77,7 +77,7 @@ std::vector<std::string> m_gc_profiles;
 std::string m_selected_gc_profile[] = {"", "", "", ""};
 std::vector<std::string> m_paths;
 bool m_show_path_warning = false;
-float m_frameScale = 1.0f;
+float m_frame_scale = 1.0f;
 int m_selectedGameIdx;
 UIState m_state = UIState();
 CarouselCategory m_ccat = CarouselCategory::CAll;
@@ -110,7 +110,7 @@ ImGuiFrontend::ImGuiFrontend()
       constexpr float frontend_modifier = 1.8f;
       uint32_t width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
 
-      m_frameScale = ((float) width / 1920.0f) * frontend_modifier;
+      m_frame_scale = ((float) width / 1920.0f) * frontend_modifier;
       wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
       wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
       // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
@@ -169,6 +169,15 @@ ImGuiFrontend::ImGuiFrontend()
   PopulateControls();
   LoadGameList();
   LoadThemes();
+
+  m_ccat = (CarouselCategory) Config::Get(Config::FRONTEND_LAST_CATEGORY);
+  m_last_category = m_ccat;
+  FilterGamesForCategory();
+
+  m_selectedGameIdx = Config::Get(Config::FRONTEND_LAST_GAME);
+
+  if (m_selectedGameIdx >= m_displayed_games.size() || m_selectedGameIdx < 0)
+    m_selectedGameIdx = 0;
 }
 
 void ImGuiFrontend::PopulateControls()
@@ -214,8 +223,9 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       {
         if (!m_direction_pressed)
         {
-          m_selectedGameIdx =
-              m_selectedGameIdx <= 0 ? static_cast<int>(m_games.size()) - 1 : m_selectedGameIdx - 1;
+          m_selectedGameIdx = m_selectedGameIdx <= 0 ?
+                                  static_cast<int>(m_displayed_games.size()) - 1 :
+                                  m_selectedGameIdx - 1;
           m_direction_pressed = true;
           break;
         }
@@ -226,7 +236,7 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       {
         if (!m_direction_pressed)
         {
-          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
+          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_displayed_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
           m_direction_pressed = true;
           break;
         }
@@ -237,7 +247,9 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       {
         if (timeSinceLastInput > 200L)
         {
-          m_selectedGameIdx = m_selectedGameIdx <= 0 ? static_cast<int>(m_games.size()) - 1 : m_selectedGameIdx - 1;
+          m_selectedGameIdx = m_selectedGameIdx <= 0 ?
+                                  static_cast<int>(m_displayed_games.size()) - 1 :
+                                  m_selectedGameIdx - 1;
           m_scroll_last = std::chrono::high_resolution_clock::now();
           break;
         }
@@ -248,7 +260,9 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       {
         if (timeSinceLastInput > 200L)
         {
-          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
+          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_displayed_games.size()) - 1 ?
+                                  0 :
+                                  m_selectedGameIdx + 1;
           m_scroll_last = std::chrono::high_resolution_clock::now();
           break;
         }
@@ -360,7 +374,7 @@ FrontendResult ImGuiFrontend::RunMainLoop()
             }
             else
             {
-              g_netplay_dialog = std::make_shared<ImGuiNetPlay>(this, m_games, m_frameScale);
+              g_netplay_dialog = std::make_shared<ImGuiNetPlay>(this, m_games, m_frame_scale);
             }
 
             m_state.menuPressed = true;
@@ -444,14 +458,14 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     {
       m_state.currentBG = BG_Menu;
 
-      ImGui::SetNextWindowSize(ImVec2(540 * m_frameScale, 425 * m_frameScale));
-      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frameScale,
-                                     ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frameScale));
+      ImGui::SetNextWindowSize(ImVec2(540 * m_frame_scale, 425 * m_frame_scale));
+      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frame_scale,
+                                     ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frame_scale));
       if (ImGui::Begin("Settings", nullptr,
                        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
       {
-        DrawSettingsMenu(&m_state, m_frameScale);
+        DrawSettingsMenu(&m_state, m_frame_scale);
         ImGui::End();
       }
     }
@@ -470,7 +484,15 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       m_state.currentBG = static_cast<ThemeBG>(m_ccat);
 
       selection = CreateMainPage();
-      if (selection.game_result != nullptr || selection.netplay)
+      if (selection.game_result != nullptr)
+      {
+        Config::SetBase(Config::FRONTEND_LAST_GAME, (int) m_selectedGameIdx);
+        Config::SetBase(Config::FRONTEND_LAST_CATEGORY, (int) m_ccat);
+        Config::Save();
+
+        break;
+      }
+      else if (selection.netplay)
       {
         break;
       }
@@ -482,9 +504,9 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     g_presenter->Present();
   }
 
-  ImGui::SetNextWindowSize(ImVec2(100 * m_frameScale, 50 * m_frameScale));
-  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (100 / 2) * m_frameScale,
-                                 ImGui::GetIO().DisplaySize.y / 2 - (50 / 2) * m_frameScale));
+  ImGui::SetNextWindowSize(ImVec2(100 * m_frame_scale, 50 * m_frame_scale));
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (100 / 2) * m_frame_scale,
+                                 ImGui::GetIO().DisplaySize.y / 2 - (50 / 2) * m_frame_scale));
   if (ImGui::Begin("Loading..", nullptr,
                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
                        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
@@ -1051,7 +1073,7 @@ void CreateWiiTab(UIState* state)
 
   if (ImGui::TreeNode("Sound"))
   {
-    for (u32 i = 0; i < 4; i++)
+    for (u32 i = 0; i < 3; i++)
     {
       ImGui::PushID(i);
       if (ImGui::RadioButton(sound_items[i], i == sound))
@@ -1248,7 +1270,7 @@ void CreatePathsTab(UIState* state)
   {
     ImGui::OpenPopup("Warning");
     m_show_path_warning = false;
-    ImGui::SetNextWindowSize(ImVec2(950 * m_frameScale, 80 * m_frameScale));
+    ImGui::SetNextWindowSize(ImVec2(950 * m_frame_scale, 80 * m_frame_scale));
   }
 
   if (ImGui::BeginPopupModal("Warning"))
@@ -1272,7 +1294,8 @@ void CreatePathsTab(UIState* state)
 
 void CreateWiiPort(int index, std::vector<std::string> devices)
 {
-  if (ImGui::BeginChild(std::format("gc-wii-{}", index).c_str(), ImVec2(-1, 150), true))
+  if (ImGui::BeginChild(std::format("gc-wii-{}", index).c_str(), ImVec2(-1, 75 * 75 * m_frame_scale),
+                        true))
   {
     auto controller = Wiimote::GetConfig()->GetController(index);
     auto default_device = controller->GetDefaultDevice().name;
@@ -1363,7 +1386,7 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
 
 void CreateGCPort(int index, std::vector<std::string> devices)
 {
-  if (ImGui::BeginChild(std::format("gc-port-{}", index).c_str(), ImVec2(-1, 150), true))
+  if (ImGui::BeginChild(std::format("gc-port-{}", index).c_str(), ImVec2(-1, 75 * m_frame_scale), true))
   {
     auto controller = Pad::GetConfig()->GetController(index);
     auto default_device = controller->GetDefaultDevice().name;
@@ -1435,8 +1458,8 @@ void CreateGCPort(int index, std::vector<std::string> devices)
 FrontendResult ImGuiFrontend::CreateMainPage()
 {
   //float selOffset = m_selectedGameIdx >= 5 ? 160.0f * (m_selectedGameIdx - 4) * -1.0f : 0;
-  float posX = 30 * m_frameScale;
-  float posY = (345.0f / 2) * m_frameScale;
+  float posX = 30 * m_frame_scale;
+  float posY = (345.0f / 2) * m_frame_scale;
   auto extraFlags = m_games.size() < 5 ? ImGuiWindowFlags_None :
                                          ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav;
 
@@ -1469,9 +1492,9 @@ FrontendResult ImGuiFrontend::CreateMainPage()
 
 FrontendResult ImGuiFrontend::CreateListPage()
 {
-  ImGui::SetNextWindowSize(ImVec2(540 * m_frameScale, 425 * m_frameScale));
-  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frameScale,
-                                 ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frameScale));
+  ImGui::SetNextWindowSize(ImVec2(540 * m_frame_scale, 425 * m_frame_scale));
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frame_scale,
+                                 ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frame_scale));
 
   if (ImGui::Begin("Dolphin Emulator", nullptr,
                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
@@ -1557,77 +1580,50 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
 
 std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
 {
-  std::vector<std::shared_ptr<UICommon::GameFile>> filtered_games;
-  switch (m_ccat)
+  if (m_last_category != m_ccat)
   {
-  case CAll:
-    filtered_games = m_games;
-    break;
-  case CWii:
-    for (auto& game : m_games)
-    {
-      if (game->GetPlatform() != DiscIO::Platform::WiiDisc)
-        continue;
+    m_last_category = m_ccat;
+    FilterGamesForCategory();
 
-      filtered_games.push_back(game);
-    }
-    break;
-  case CGC:
-    for (auto& game : m_games)
-    {
-      if (game->GetPlatform() != DiscIO::Platform::GameCubeDisc)
-        continue;
-
-      filtered_games.push_back(game);
-    }
-    break;
-  case COther:
-    for (auto& game : m_games)
-    {
-      if (game->GetPlatform() != DiscIO::Platform::ELFOrDOL || game->GetPlatform() != DiscIO::Platform::WiiWAD)
-        continue;
-
-      filtered_games.push_back(game);
-    }
-    break;
+    m_selectedGameIdx = 0;
   }
 
   if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f)
   {
-    if (filtered_games.size() != 0)
-      return filtered_games[m_selectedGameIdx];
+    if (m_displayed_games.size() != 0)
+      return m_displayed_games[m_selectedGameIdx];
   }
 
   // Display 5 games, 2 games to the left of the selection, 2 games to the right.
   for (int i = m_selectedGameIdx - 2; i < m_selectedGameIdx + 3; i++)
   {
     int idx = i;
-    if (filtered_games.size() >= 4)
+    if (m_displayed_games.size() >= 4)
     {
       if (i < 0)
       {
         // wrap around, total games + -index
-        idx = static_cast<int>(filtered_games.size()) + i;
+        idx = static_cast<int>(m_displayed_games.size()) + i;
       }
-      else if (i >= filtered_games.size())
+      else if (i >= m_displayed_games.size())
       {
         // wrap around, i - total games
-        idx = i - static_cast<int>(filtered_games.size());
+        idx = i - static_cast<int>(m_displayed_games.size());
       }
     }
     else
     {
       if (i < 0)
       {
-        idx = static_cast<int>(filtered_games.size()) + i;
+        idx = static_cast<int>(m_displayed_games.size()) + i;
       }
-      else if (i >= filtered_games.size())
+      else if (i >= m_displayed_games.size())
       {
         continue;
       }
     }
 
-    if (idx < 0 || idx >= filtered_games.size())
+    if (idx < 0 || idx >= m_displayed_games.size())
       continue;
 
     ImVec4 border_col;
@@ -1636,31 +1632,31 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
     {
       border_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
       // The background image doesn't fit 2 games very well when scaled up.
-      selectedScale = filtered_games.size() > 2 ? 1.15 : 1.0f;
+      selectedScale = m_displayed_games.size() > 2 ? 1.15 : 1.0f;
     }
     else
     {
       border_col = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    AbstractTexture* handle = GetHandleForGame(filtered_games[idx]);
+    AbstractTexture* handle = GetHandleForGame(m_displayed_games[idx]);
     ImGui::SameLine();
     ImGui::BeginChild(
-        filtered_games[idx]->GetFilePath().c_str(),
-        ImVec2((160 + 25) * m_frameScale * selectedScale, 250 * m_frameScale * selectedScale), true,
+        m_displayed_games[idx]->GetFilePath().c_str(),
+        ImVec2((160 + 25) * m_frame_scale * selectedScale, 250 * m_frame_scale * selectedScale), true,
         ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar);
 
     if (handle != 0)
     {
       ImGui::Image((ImTextureID) handle,
-          ImVec2(160.f * m_frameScale * selectedScale, 224.f * m_frameScale * selectedScale),
+          ImVec2(160.f * m_frame_scale * selectedScale, 224.f * m_frame_scale * selectedScale),
           ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), border_col);
-      ImGui::Text(filtered_games[idx]->GetName(m_title_database).c_str());
+      ImGui::Text(m_displayed_games[idx]->GetName(m_title_database).c_str());
     }
     else
     {
-      ImGui::Text(filtered_games[idx]->GetName(m_title_database).c_str());
+      ImGui::Text(m_displayed_games[idx]->GetName(m_title_database).c_str());
     }
 
     ImGui::EndChild();
@@ -1746,6 +1742,7 @@ void ImGuiFrontend::LoadGameList()
 {
   m_paths.clear();
   m_games.clear();
+  m_displayed_games.clear();
   m_paths = Config::GetIsoPaths();
   for (auto dir : m_paths)
   {
@@ -1763,6 +1760,49 @@ void ImGuiFrontend::LoadGameList()
                    std::shared_ptr<UICommon::GameFile> second) {
           return first->GetName(m_title_database) < second->GetName(m_title_database);
   });
+
+  
+  FilterGamesForCategory();
+}
+
+void ImGuiFrontend::FilterGamesForCategory()
+{
+  m_displayed_games.clear();
+
+  switch (m_ccat)
+  {
+  case CAll:
+    m_displayed_games.insert(m_displayed_games.begin(), m_games.begin(), m_games.end());
+    break;
+  case CWii:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() != DiscIO::Platform::WiiDisc)
+        continue;
+
+      m_displayed_games.push_back(game);
+    }
+    break;
+  case CGC:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() != DiscIO::Platform::GameCubeDisc)
+        continue;
+
+      m_displayed_games.push_back(game);
+    }
+    break;
+  case COther:
+    for (auto& game : m_games)
+    {
+      if (game->GetPlatform() == DiscIO::Platform::WiiDisc ||
+          game->GetPlatform() == DiscIO::Platform::GameCubeDisc)
+        continue;
+
+      m_displayed_games.push_back(game);
+    }
+    break;
+  }
 }
 
 void ImGuiFrontend::LoadThemes()
@@ -1878,13 +1918,13 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     {
       state->selectedTab = Wii;
     }
-    if (ImGui::Selectable("Paths", state->selectedTab == Paths))
-    {
-      state->selectedTab = Paths;
-    }
     if (ImGui::Selectable("Advanced", state->selectedTab == Advanced))
     {
       state->selectedTab = Advanced;
+    }
+    if (ImGui::Selectable("Paths", state->selectedTab == Paths))
+    {
+      state->selectedTab = Paths;
     }
     if (ImGui::Selectable("About", state->selectedTab == About))
     {
@@ -1925,7 +1965,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.16\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.6\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend, developed by SirMangler.\n"
           "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"
