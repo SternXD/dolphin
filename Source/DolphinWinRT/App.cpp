@@ -75,7 +75,6 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     v.Activated({this, &App::OnActivate});
     CoreApplication::EnteredBackground({this, &App::EnteredBackground});
     CoreApplication::Suspending({this, &App::Suspending});
-   
   }
 
   void Load(hstring const&) {}

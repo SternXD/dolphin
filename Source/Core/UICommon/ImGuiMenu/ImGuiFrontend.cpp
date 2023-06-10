@@ -307,6 +307,48 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
 
         input_handled = true;
       }
+      else if (m_displayed_games.size() > 10 && TryInput("Trigger L", device))
+      {
+        if (timeSinceLastInput > 500L)
+        {
+          int i = m_selectedGameIdx - 10;
+          if (i < 0)
+          {
+            // wrap around, total games + -index
+            m_selectedGameIdx = static_cast<int>(m_displayed_games.size()) + i;
+          }
+          else
+          {
+            m_selectedGameIdx = i;
+          }
+
+          m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
+        }
+
+        input_handled = true;
+      }
+      else if (m_displayed_games.size() > 10 && TryInput("Trigger R", device))
+      {
+        if (timeSinceLastInput > 500L)
+        {
+          int i = m_selectedGameIdx + 10;
+          if (i >= m_displayed_games.size())
+          {
+            // wrap around, i - total games
+            m_selectedGameIdx = i - static_cast<int>(m_displayed_games.size());
+          }
+          else
+          {
+            m_selectedGameIdx = i;
+          }
+
+          m_scroll_last = std::chrono::high_resolution_clock::now();
+          break;
+        }
+
+        input_handled = true;
+      }
       else
       {
         m_direction_pressed = false;
