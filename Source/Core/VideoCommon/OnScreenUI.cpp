@@ -80,6 +80,12 @@ bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
   // Font texture(s).
   {
     ImGuiIO& io = ImGui::GetIO();
+    ImFontConfig config;
+    config.MergeMode = true;
+    io.Fonts->AddFontFromFileTTF("Sys/Resources/Roboto-Regular.ttf", 13, 0);
+    io.Fonts->AddFontFromFileTTF("Sys/Resources/NotoSansJP-Regular.ttf", 13, &config,
+                                 io.Fonts->GetGlyphRangesJapanese());
+
     u8* font_tex_pixels;
     int font_tex_width, font_tex_height;
     io.Fonts->GetTexDataAsRGBA32(&font_tex_pixels, &font_tex_width, &font_tex_height);
