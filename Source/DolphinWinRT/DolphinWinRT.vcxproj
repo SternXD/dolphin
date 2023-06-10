@@ -4926,6 +4926,10 @@
       <Project>{89e9b32e-a86a-47c3-a948-d2b1622925ce}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Font Include="Sys\Resources\NotoSansJP-Regular.ttf" />
+    <Font Include="Sys\Resources\Roboto-Regular.ttf" />
+  </ItemGroup>
   <Import Project="$(ExternalsDir)bzip2\exports.props" />
   <Import Project="$(ExternalsDir)cpp-optparse\exports.props" />
   <Import Project="$(ExternalsDir)discord-rpc\exports.props" />
