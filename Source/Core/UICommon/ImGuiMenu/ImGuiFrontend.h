@@ -140,7 +140,7 @@ private:
   CarouselCategory m_last_category = CarouselCategory::CCount; // Default to CCount to trigger an update
   std::string m_prev_list_search;
   std::vector<std::shared_ptr<UICommon::GameFile>> m_list_search_results;
-  char m_list_search_buf[32];
+  char m_list_search_buf[32] {};
 };
 
 void DrawSettingsMenu(UIState* state, float frame_scale);
