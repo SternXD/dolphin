@@ -17,5 +17,6 @@ const Info<bool> MAIN_FOCUSED_HOTKEYS{{System::Main, "General", "HotkeysRequireF
 const Info<bool> MAIN_RECURSIVE_ISO_PATHS{{System::Main, "General", "RecursiveISOPaths"}, false};
 const Info<std::string> MAIN_CURRENT_STATE_PATH{{System::Main, "General", "CurrentStatePath"}, ""};
 const Info<std::string> FRONTEND_SELECTED_THEME{{System::Main, "General", "FrontendTheme"}, ""};
-
+const Info<int> FRONTEND_LAST_CATEGORY{{System::Main, "General", "LastCarouselCategory"}, 1};
+const Info<int> FRONTEND_LAST_GAME{{System::Main, "General", "LastCarouselGame"}, 0};
 }  // namespace Config
