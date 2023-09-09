@@ -1577,7 +1577,7 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
         m_list_search_results.clear();
         for (auto& game : m_games)
         {
-            auto& name = game->GetLongName();
+            auto& name = game->GetName(m_title_database);
             auto it = std::search(name.begin(), name.end(), search_phrase.begin(),
                                   search_phrase.end(), [](unsigned char ch1, unsigned char ch2) {
                                     return std::toupper(ch1) == std::toupper(ch2);
@@ -1601,7 +1601,8 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
 
     for (auto& game : games)
     {
-      if (ImGui::Selectable(std::format("{}##{}", game->GetLongName(), game->GetFilePath()).c_str()))
+      if (ImGui::Selectable(std::format("{}##{}", game->GetName(m_title_database).c_str(),
+                                                  game->GetFilePath()).c_str()))
       {
         ImGui::EndListBox();
         return game;
