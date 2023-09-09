@@ -115,13 +115,13 @@ ImGuiFrontend::ImGuiFrontend()
 #endif
 
   // Manually reactivate the video backend in case a GameINI overrides the video backend setting.
-  VideoBackendBase::PopulateBackendInfo();
+  VideoBackendBase::PopulateBackendInfo(wsi);
 
   // Issue any API calls which must occur on the main thread for the graphics backend.
   WindowSystemInfo prepared_wsi(wsi);
   g_video_backend->PrepareWindow(prepared_wsi);
 
-  VideoBackendBase::PopulateBackendInfo();
+  VideoBackendBase::PopulateBackendInfo(wsi);
   if (!g_video_backend->Initialize(wsi))
   {
     PanicAlertFmt("Failed to initialize video backend!");
