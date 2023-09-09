@@ -135,6 +135,11 @@ bool SwapChain::CreateSwapChain(bool stereo, bool hdr)
   // support the newer DXGI interface aren't going to support DX12 anyway.
   if (FAILED(hr))
   {
+#ifdef WINRT_XBOX
+    PanicAlertFmt("Failed to create swap chain: {}", Common::HRWrap(hr));
+    return false;
+#else
+
     hdr = false;
 
     DXGI_SWAP_CHAIN_DESC desc = {};
