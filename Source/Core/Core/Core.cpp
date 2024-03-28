@@ -207,7 +207,8 @@ void DisplayMessage(std::string message, int time_in_ms)
 
 bool IsRunning()
 {
-  return (GetState() != State::Uninitialized || s_hardware_initialized) && !s_is_stopping;
+  auto& system = Core::System::GetInstance();
+  return (GetState(system) != State::Uninitialized || s_hardware_initialized) && !s_is_stopping;
 }
 
 bool IsRunningAndStarted()
@@ -286,8 +287,11 @@ static void ResetRumble()
 // Called from GUI thread
 void Stop(Core::System& system)  // - Hammertime!
 {
-  if (GetState() == State::Stopping || GetState() == State::Uninitialized)
+  if (const State state = GetState(system);
+      state == State::Stopping || state == State::Uninitialized)
+  {
     return;
+  }
 
 #ifdef USE_RETRO_ACHIEVEMENTS
   AchievementManager::GetInstance().CloseGame();
@@ -742,17 +746,16 @@ void SetState(State state, bool report_state_change)
   // Certain callers only change the state momentarily. Sending a callback for them causes
   // unwanted updates, such as the Pause/Play button flickering between states on frame advance.
   if (report_state_change)
-    CallOnStateChangedCallbacks(GetState());
+    CallOnStateChangedCallbacks(GetState(system));
 }
 
-State GetState()
+State GetState(Core::System& system)
 {
   if (s_is_stopping)
     return State::Stopping;
 
   if (s_hardware_initialized)
   {
-    auto& system = Core::System::GetInstance();
     if (system.GetCPU().IsStepping())
       return State::Paused;
 
@@ -918,7 +921,7 @@ void Callback_NewField(Core::System& system)
     {
       s_frame_step = false;
       system.GetCPU().Break();
-      CallOnStateChangedCallbacks(Core::GetState());
+      CallOnStateChangedCallbacks(Core::GetState(system));
     }
   }
 
@@ -1060,7 +1063,7 @@ void HostDispatchJobs(Core::System& system)
 }
 
 // NOTE: Host Thread
-void DoFrameStep()
+void DoFrameStep(Core::System& system)
 {
 #ifdef USE_RETRO_ACHIEVEMENTS
   if (AchievementManager::GetInstance().IsHardcoreModeActive())
@@ -1069,7 +1072,7 @@ void DoFrameStep()
     return;
   }
 #endif  // USE_RETRO_ACHIEVEMENTS
-  if (GetState() == State::Paused)
+  if (GetState(system) == State::Paused)
   {
     // if already paused, frame advance for 1 frame
     s_stop_frame_step = false;
