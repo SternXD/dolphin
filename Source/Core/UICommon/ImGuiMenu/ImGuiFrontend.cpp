@@ -130,8 +130,8 @@ ImGuiFrontend::ImGuiFrontend()
 
   ImGui::GetIO().KeyMap[ImGuiKey_Backspace] = '\b';
 
-  std::string profiles_path =
-      File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR + Wiimote::GetConfig()->GetProfileName();
+  std::string profiles_path = File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
+                              Wiimote::GetConfig()->GetProfileDirectoryName();
   for (const auto& filename : Common::DoFileSearch({profiles_path}, {".ini"}))
   {
     std::string basename;
@@ -146,7 +146,7 @@ ImGuiFrontend::ImGuiFrontend()
   m_wiimote_profiles.emplace_back("Sideways Wiimote");
 
   profiles_path =
-      File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR + Pad::GetConfig()->GetProfileName();
+      File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR + Pad::GetConfig()->GetProfileDirectoryName();
   for (const auto& filename : Common::DoFileSearch({profiles_path}, {".ini"}))
   {
     std::string basename;
@@ -735,10 +735,10 @@ void CreateGraphicsTab(UIState* state)
   case AspectMode::Auto:
     aspect_idx = 0;
     break;
-  case AspectMode::AnalogWide:
+  case AspectMode::ForceWide:
     aspect_idx = 1;
     break;
-  case AspectMode::Analog:
+  case AspectMode::ForceStandard:
     aspect_idx = 2;
     break;
   case AspectMode::Stretch:
@@ -759,10 +759,10 @@ void CreateGraphicsTab(UIState* state)
             Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Auto);
             break;
         case 1:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::AnalogWide);
+            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceWide);
             break;
         case 2:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Analog);
+            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceStandard);
             break;
         case 3:
             Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Stretch);
@@ -1381,7 +1381,7 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
             { 
               Common::IniFile ini;
               ini.Load(File::GetSysDirectory() + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileName() + "/Classic.ini");
+                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/Classic.ini");
 
               controller->LoadConfig(ini.GetOrCreateSection("Profile"));
               Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
@@ -1391,7 +1391,7 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
             { 
               Common::IniFile ini;
               ini.Load(File::GetSysDirectory() + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileName() + "/Sideways.ini");
+                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/Sideways.ini");
 
               controller->LoadConfig(ini.GetOrCreateSection("Profile"));
               Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
@@ -1401,7 +1401,7 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
             {
               Common::IniFile ini;
               ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileName() + "/" + profile + ".ini");
+                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
 
               controller->LoadConfig(ini.GetOrCreateSection("Profile"));
               Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
@@ -1472,7 +1472,7 @@ void CreateGCPort(int index, std::vector<std::string> devices)
             {
               Common::IniFile ini;
               ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
-                       Pad::GetConfig()->GetProfileName() + "/" + profile + ".ini");
+                       Pad::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
 
               controller->LoadConfig(ini.GetOrCreateSection("Profile"));
               Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
@@ -1739,7 +1739,7 @@ std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path)
   u32 width, height;
   Common::LoadPNG(buffer, &data, &width, &height);
 
-  TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0);
+  TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
 
   std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, path);
   if (!tex)
@@ -2002,7 +2002,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.6\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.8\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend, developed by SirMangler.\n"
           "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"

@@ -107,7 +107,8 @@ inline winrt::fire_and_forget OpenDiscPicker()
   {
     Core::RunAsCPUThread([&file] {
       auto& system = Core::System::GetInstance();
-      system.GetDVDInterface().ChangeDisc(winrt::to_string(file.Path().data()));
+      const Core::CPUThreadGuard guard(system);
+      system.GetDVDInterface().ChangeDisc(guard, winrt::to_string(file.Path().data()));
     });
   }
 }
