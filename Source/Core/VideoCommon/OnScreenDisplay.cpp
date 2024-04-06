@@ -263,8 +263,9 @@ void DrawInGameMenu()
             {
               Core::RunOnCPUThread([i] {
                 s_show_menu = false;
+                auto& system = Core::System::GetInstance();
                 Core::SetState(Core::State::Running);
-                State::Load(i);
+                State::Load(system, i);
               }, false);
             }
 
@@ -272,9 +273,9 @@ void DrawInGameMenu()
             {
               Core::RunOnCPUThread([i] {
                 s_show_menu = false;
+                auto& system = Core::System::GetInstance();
                 Core::SetState(Core::State::Running);
-
-                State::Save(i);
+                State::Save(system, i);
               }, false);
             }
           }

@@ -499,8 +499,9 @@ void ImGuiNetPlay::BootGame(const std::string& filename,
 
         std::unique_ptr<BootParameters> boot =
             BootParameters::GenerateFromFile(filename, std::move(*data));
+        auto& system = Core::System::GetInstance();
 
-        if (!BootManager::BootCore(std::move(boot), wsi))
+        if (!BootManager::BootCore(system, std::move(boot), wsi))
         {
           fprintf(stderr, "Could not boot the specified file\n");
         }
@@ -708,6 +709,11 @@ void ImGuiNetPlay::HideChunkedProgressDialog()
 
 void ImGuiNetPlay::SetChunkedProgress(int pid, u64 progress)
 {
+}
+
+void ImGuiNetPlay::OnTtlDetermined(u8 ttl)
+{
+
 }
 
 void ImGuiNetPlay::SetHostWiiSyncData(std::vector<u64> titles, std::string redirect_folder)
