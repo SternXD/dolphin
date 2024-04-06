@@ -586,7 +586,7 @@ static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot
 
   VideoBackendBase::PopulateBackendInfo(wsi);
 
-  if (g_video_backend->Initialized()) 
+  if (!g_video_backend->Initialized()) 
   {
       if (!g_video_backend->Initialize(wsi))
       {
