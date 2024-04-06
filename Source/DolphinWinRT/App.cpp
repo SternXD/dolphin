@@ -117,18 +117,20 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       // Dolphin loop
       while (Core::GetState() != Core::State::Stopping)
       {
+        auto& system = Core::System::GetInstance();
+
         if (g_shutdown_requested.TestAndClear())
         {
           if (NetPlay::IsNetPlayRunning())
             NetPlay::SendPowerButtonEvent();
 
-          Core::Stop();
-          Core::Shutdown();
+          Core::Stop(system);
+          Core::Shutdown(system);
 
           break;
         }
 
-        ::Core::HostDispatchJobs();
+        ::Core::HostDispatchJobs(system);
 
         if (Core::IsRunningAndStarted())
         {
@@ -231,10 +233,12 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       }
     }
 
+    auto& system = Core::System::GetInstance();
+
     std::unique_ptr<BootParameters> boot =
         BootParameters::GenerateFromFile(path, BootSessionData("", DeleteSavestateAfterBoot::No));
 
-    if (!BootManager::BootCore(std::move(boot), wsi))
+    if (!BootManager::BootCore(system, std::move(boot), wsi))
     {
       fprintf(stderr, "Could not boot the specified file\n");
     }
@@ -315,9 +319,11 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     void Suspending(const IInspectable&,
                     const winrt::Windows::ApplicationModel::SuspendingEventArgs& args)
     {
+      auto& system = Core::System::GetInstance();
+
       // The Series S/X quits fast, so let's immediately shutdown to ensure all the caches save.
-      Core::Stop();
-      Core::Shutdown();
+      Core::Stop(system);
+      Core::Shutdown(system);
       UICommon::Shutdown();
 
       if (!m_launchOnExit.empty())

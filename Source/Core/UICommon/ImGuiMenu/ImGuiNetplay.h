@@ -68,6 +68,8 @@ class ImGuiNetPlay : public NetPlay::NetPlayUI
 
   void SetHostWiiSyncData(std::vector<u64> titles, std::string redirect_folder) override;
 
+  void OnTtlDetermined(u8 ttl) override;
+
 public:
   ImGuiNetPlay(ImGuiFrontend* frontend, std::vector<std::shared_ptr<UICommon::GameFile>> games, float frame_scale);
 
