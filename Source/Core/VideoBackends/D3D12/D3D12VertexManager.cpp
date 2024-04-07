@@ -167,7 +167,7 @@ void VertexManager::UpdateGeometryShaderConstants()
   if (!geometry_shader_manager.dirty || !ReserveConstantStorage())
     return;
 
-  Gfx::GetInstance()->SetConstantBuffer(3, m_uniform_stream_buffer.GetCurrentGPUPointer());
+  Gfx::GetInstance()->SetConstantBuffer(2, m_uniform_stream_buffer.GetCurrentGPUPointer());
   std::memcpy(m_uniform_stream_buffer.GetCurrentHostPointer(), &geometry_shader_manager.constants,
               sizeof(GeometryShaderConstants));
   m_uniform_stream_buffer.CommitMemory(sizeof(GeometryShaderConstants));
@@ -193,6 +193,7 @@ void VertexManager::UpdatePixelShaderConstants()
     pixel_shader_manager.dirty = false;
   }
 
+  /*
   if (pixel_shader_manager.custom_constants_dirty)
   {
     Gfx::GetInstance()->SetConstantBuffer(2, m_uniform_stream_buffer.GetCurrentGPUPointer());
@@ -203,18 +204,19 @@ void VertexManager::UpdatePixelShaderConstants()
         static_cast<u32>(pixel_shader_manager.custom_constants.size()));
     pixel_shader_manager.custom_constants_dirty = false;
   }
+  */
 }
 
 bool VertexManager::ReserveConstantStorage()
 {
-  auto& system = Core::System::GetInstance();
-  auto& pixel_shader_manager = system.GetPixelShaderManager();
+  //auto& system = Core::System::GetInstance();
+  //auto& pixel_shader_manager = system.GetPixelShaderManager();
 
   static constexpr u32 reserve_size =
       static_cast<u32>(std::max({sizeof(PixelShaderConstants), sizeof(VertexShaderConstants),
                                  sizeof(GeometryShaderConstants)}));
-  const u32 custom_constants_size = static_cast<u32>(pixel_shader_manager.custom_constants.size());
-  if (m_uniform_stream_buffer.ReserveMemory(reserve_size + custom_constants_size,
+  //const u32 custom_constants_size = static_cast<u32>(pixel_shader_manager.custom_constants.size());
+  if (m_uniform_stream_buffer.ReserveMemory(reserve_size,
                                             D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
   {
     return true;
@@ -246,8 +248,8 @@ void VertexManager::UploadAllConstants()
   constexpr u32 custom_pixel_constants_offset =
       Common::AlignUp(geometry_constants_offset + sizeof(GeometryShaderConstants),
                       D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-  const u32 allocation_size = custom_pixel_constants_offset +
-                              static_cast<u32>(pixel_shader_manager.custom_constants.size());
+  const u32 allocation_size = custom_pixel_constants_offset; // +
+                              //static_cast<u32>(pixel_shader_manager.custom_constants.size());
 
   // Allocate everything at once.
   // We should only be here if the buffer was full and a command buffer was submitted anyway.
@@ -263,9 +265,11 @@ void VertexManager::UploadAllConstants()
                                                pixel_constants_offset);
   Gfx::GetInstance()->SetConstantBuffer(1, m_uniform_stream_buffer.GetCurrentGPUPointer() +
                                                vertex_constants_offset);
+  /*
   Gfx::GetInstance()->SetConstantBuffer(2, m_uniform_stream_buffer.GetCurrentGPUPointer() +
                                                custom_pixel_constants_offset);
-  Gfx::GetInstance()->SetConstantBuffer(3, m_uniform_stream_buffer.GetCurrentGPUPointer() +
+  */
+  Gfx::GetInstance()->SetConstantBuffer(2, m_uniform_stream_buffer.GetCurrentGPUPointer() +
                                                geometry_constants_offset);
 
   auto& vertex_shader_manager = system.GetVertexShaderManager();
@@ -278,12 +282,15 @@ void VertexManager::UploadAllConstants()
               &vertex_shader_manager.constants, sizeof(VertexShaderConstants));
   std::memcpy(m_uniform_stream_buffer.GetCurrentHostPointer() + geometry_constants_offset,
               &geometry_shader_manager.constants, sizeof(GeometryShaderConstants));
+
+  /*
   if (!pixel_shader_manager.custom_constants.empty())
   {
     std::memcpy(m_uniform_stream_buffer.GetCurrentHostPointer() + custom_pixel_constants_offset,
                 pixel_shader_manager.custom_constants.data(),
                 pixel_shader_manager.custom_constants.size());
   }
+  */
 
   // Finally, flush buffer memory after copying
   m_uniform_stream_buffer.CommitMemory(allocation_size);
