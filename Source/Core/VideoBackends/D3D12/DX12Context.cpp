@@ -367,7 +367,7 @@ bool DXContext::CreateGXRootSignature()
   SetRootParamTable(&params[param_count], &ranges[param_count], D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3,
                     1, D3D12_SHADER_VISIBILITY_VERTEX);
   param_count++;
-  SetRootParamConstant(&params[param_count], 4, 1, D3D12_SHADER_VISIBILITY_VERTEX);
+  SetRootParamConstant(&params[param_count], 3, 1, D3D12_SHADER_VISIBILITY_VERTEX);
   param_count++;
 
   // Since these must be contiguous, pixel lighting goes to bbox if not enabled.
@@ -383,7 +383,7 @@ bool DXContext::CreateGXRootSignature()
     param_count++;
   }
 
-  SetRootParamCBV(&params[param_count], 2, D3D12_SHADER_VISIBILITY_PIXEL);
+  // SetRootParamCBV(&params[param_count], 2, D3D12_SHADER_VISIBILITY_PIXEL);
   param_count++;
 
   return BuildRootSignature(m_device.Get(), &m_gx_root_signature, params.data(), param_count);
