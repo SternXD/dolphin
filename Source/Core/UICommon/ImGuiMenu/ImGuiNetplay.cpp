@@ -565,7 +565,7 @@ void ImGuiNetPlay::OnMsgStartGame()
   }
   else
   {
-    m_warning_text = "Could not find the selected game.";
+    m_warning_text = "Could not find the selected game or the game dump is too different.";
     m_prompt_warning = true;
   }
 }
