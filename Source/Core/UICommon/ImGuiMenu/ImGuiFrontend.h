@@ -135,6 +135,8 @@ private:
   std::chrono::high_resolution_clock::time_point m_scroll_last =
       std::chrono::high_resolution_clock::now();
 
+  std::chrono::high_resolution_clock::time_point m_time_since_init =
+      std::chrono::high_resolution_clock::now();
   
   std::vector<std::shared_ptr<UICommon::GameFile>> m_displayed_games;
   CarouselCategory m_last_category = CarouselCategory::CCount; // Default to CCount to trigger an update
