@@ -81,51 +81,53 @@ FrontendTheme* m_selected_theme;
 
 ImGuiFrontend::ImGuiFrontend()
 {
-  WindowSystemInfo wsi;
-
-#ifdef WINRT_XBOX
-  // To-Do: Handle other platforms, extract this code so it can be done by the host!
-
-  CoreWindow window = CoreWindow::GetForCurrentThread();
-  void* abi = winrt::get_abi(window);
-
-  wsi.type = WindowSystemType::Windows;
-  wsi.render_surface = abi;
-  wsi.render_width = window.Bounds().Width;
-  wsi.render_height = window.Bounds().Height;
-
-  GAMING_DEVICE_MODEL_INFORMATION info = {};
-  GetGamingDeviceModelInformation(&info);
-  if (info.vendorId == GAMING_DEVICE_VENDOR_ID_MICROSOFT)
+  if (!g_video_backend->Initialized())
   {
-    winrt::Windows::Graphics::Display::Core::HdmiDisplayInformation hdi =
-        winrt::Windows::Graphics::Display::Core::HdmiDisplayInformation::GetForCurrentView();
-    if (hdi)
+    WindowSystemInfo wsi;
+
+  #ifdef WINRT_XBOX
+    // To-Do: Handle other platforms, extract this code so it can be done by the host!
+
+    CoreWindow window = CoreWindow::GetForCurrentThread();
+    void* abi = winrt::get_abi(window);
+
+    wsi.type = WindowSystemType::Windows;
+    wsi.render_surface = abi;
+    wsi.render_width = window.Bounds().Width;
+    wsi.render_height = window.Bounds().Height;
+
+    GAMING_DEVICE_MODEL_INFORMATION info = {};
+    GetGamingDeviceModelInformation(&info);
+    if (info.vendorId == GAMING_DEVICE_VENDOR_ID_MICROSOFT)
     {
-      constexpr float frontend_modifier = 1.8f;
-      uint32_t width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
+      winrt::Windows::Graphics::Display::Core::HdmiDisplayInformation hdi =
+          winrt::Windows::Graphics::Display::Core::HdmiDisplayInformation::GetForCurrentView();
+      if (hdi)
+      {
+        constexpr float frontend_modifier = 1.8f;
+        uint32_t width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
 
-      m_frame_scale = ((float) width / 1920.0f) * frontend_modifier;
-      wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
-      wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
-      // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
-      wsi.render_surface_scale = ((float) wsi.render_width / 1920.0f) * 1.8f;
+        m_frame_scale = ((float) width / 1920.0f) * frontend_modifier;
+        wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
+        wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
+        // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
+        wsi.render_surface_scale = ((float) wsi.render_width / 1920.0f) * 1.8f;
+      }
     }
-  }
-#endif
+  #endif
 
-  // Manually reactivate the video backend in case a GameINI overrides the video backend setting.
-  VideoBackendBase::PopulateBackendInfo(wsi);
+    // Manually reactivate the video backend in case a GameINI overrides the video backend setting.
+    VideoBackendBase::PopulateBackendInfo(wsi);
+    // Issue any API calls which must occur on the main thread for the graphics backend.
+    WindowSystemInfo prepared_wsi(wsi);
+    g_video_backend->PrepareWindow(prepared_wsi);
 
-  // Issue any API calls which must occur on the main thread for the graphics backend.
-  WindowSystemInfo prepared_wsi(wsi);
-  g_video_backend->PrepareWindow(prepared_wsi);
-
-  VideoBackendBase::PopulateBackendInfo(wsi);
-  if (!g_video_backend->Initialize(wsi))
-  {
-    PanicAlertFmt("Failed to initialize video backend!");
-    return;
+    VideoBackendBase::PopulateBackendInfo(wsi);
+    if (!g_video_backend->Initialize(wsi))
+    {
+      PanicAlertFmt("Failed to initialize video backend!");
+      return;
+    }
   }
 
   ImGui::GetIO().KeyMap[ImGuiKey_Backspace] = '\b';
@@ -374,6 +376,9 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(
         winrt::Windows::UI::Core::CoreProcessEventsOption::ProcessAllIfPresent);
 
+    if (!m_state.controlsDisabled)
+      RefreshControls(!m_state.showSettingsWindow);
+
     for (auto device : m_controllers)
     {
       if (device && device->IsValid() && !m_state.controlsDisabled)
@@ -534,9 +539,6 @@ FrontendResult ImGuiFrontend::RunMainLoop()
         break;
       }
     }
-
-    if (!m_state.controlsDisabled)
-      RefreshControls(!m_state.showSettingsWindow);
 
     g_presenter->Present();
   }
