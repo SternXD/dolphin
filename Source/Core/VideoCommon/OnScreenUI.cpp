@@ -443,7 +443,11 @@ void OnScreenUI::Finalize()
   g_perf_metrics.DrawImGuiStats(m_backbuffer_scale);
   DrawDebugText();
   OSD::DrawMessages();
+#ifdef USE_RETRO_ACHIEVEMENTS
   DrawChallengesAndLeaderboards();
+#endif  // USE_RETRO_ACHIEVEMENTS
+  OSD::DrawInGameMenu();
+
   ImGui::Render();
 }
 
