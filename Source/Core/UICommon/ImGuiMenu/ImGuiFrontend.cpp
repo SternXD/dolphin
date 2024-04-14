@@ -1601,10 +1601,14 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
       games = m_games;
     }
 
+    long timeSinceInit = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::high_resolution_clock::now() - m_time_since_init)
+                             .count();
     for (auto& game : games)
     {
-      if (ImGui::Selectable(std::format("{}##{}", game->GetName(m_title_database).c_str(),
-                                                  game->GetFilePath()).c_str()))
+      if (ImGui::Selectable(std::format("{}##{}", game->GetName(m_title_database).c_str(), game->GetFilePath())
+                  .c_str()) &&
+          timeSinceInit > 1500)
       {
         ImGui::EndListBox();
         return game;
@@ -1627,7 +1631,10 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
     m_selectedGameIdx = 0;
   }
 
-  if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f)
+  long timeSinceInit = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::high_resolution_clock::now() - m_time_since_init)
+                           .count();
+  if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f && timeSinceInit > 1500)
   {
     if (m_displayed_games.size() != 0)
       return m_displayed_games[m_selectedGameIdx];
