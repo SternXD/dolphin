@@ -217,17 +217,11 @@ void GeneralPane::CreateFallbackRegion()
   fallback_region_dropdown_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
   fallback_region_group_layout->addLayout(fallback_region_dropdown_layout);
 
-  m_combobox_fallback_region = new QComboBox(this);
+  m_combobox_fallback_region = new ToolTipComboBox();
   fallback_region_dropdown_layout->addRow(tr("Fallback Region:"), m_combobox_fallback_region);
 
   for (const QString& option : {tr("NTSC-J"), tr("NTSC-U"), tr("PAL"), tr("NTSC-K")})
     m_combobox_fallback_region->addItem(option);
-
-  auto* fallback_region_description =
-      new QLabel(tr("Dolphin will use this for titles whose region cannot be determined "
-                    "automatically."));
-  fallback_region_description->setWordWrap(true);
-  fallback_region_group_layout->addWidget(fallback_region_description);
 }
 
 #if defined(USE_ANALYTICS) && USE_ANALYTICS
@@ -433,6 +427,9 @@ void GeneralPane::AddDescriptions()
       "<br><br>Selecting \"Don't Update\" will prevent Dolphin from automatically checking for "
       "updates."
       "<br><br><dolphin_emphasis>If unsure, select Releases.</dolphin_emphasis>");
+  static constexpr char TR_FALLBACK_REGION_DESCRIPTION[] =
+      QT_TR_NOOP("Sets the region used for titles whose region cannot be determined automatically."
+                 "<br><br>This setting cannot be changed while emulation is active.");
 
   m_checkbox_dualcore->SetDescription(tr(TR_DUALCORE_DESCRIPTION));
 
@@ -454,4 +451,7 @@ void GeneralPane::AddDescriptions()
     m_combobox_update_track->SetTitle(tr("Auto Update"));
     m_combobox_update_track->SetDescription(tr(TR_UPDATE_TRACK_DESCRIPTION));
   }
+
+  m_combobox_fallback_region->SetTitle(tr("Fallback Region"));
+  m_combobox_fallback_region->SetDescription(tr(TR_FALLBACK_REGION_DESCRIPTION));
 }
