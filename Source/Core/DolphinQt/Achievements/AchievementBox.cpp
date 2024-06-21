@@ -4,6 +4,7 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinQt/Achievements/AchievementBox.h"
 
+#include <QByteArray>
 #include <QDateTime>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -109,7 +110,9 @@ void AchievementBox::UpdateProgress()
     m_progress_bar->setRange(0, 100);
     m_progress_bar->setValue(m_achievement->measured_percent);
     m_progress_bar->setTextVisible(false);
-    m_progress_label->setText(QString::fromUtf8(m_achievement->measured_progress, PROGRESS_LENGTH));
+    m_progress_label->setText(
+        QString::fromUtf8(m_achievement->measured_progress,
+                          qstrnlen(m_achievement->measured_progress, PROGRESS_LENGTH)));
     m_progress_bar->setVisible(true);
   }
   else
