@@ -581,10 +581,15 @@ static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot
 
   VideoBackendBase::PopulateBackendInfo(wsi);
 
-  if (!g_video_backend->Initialize(wsi))
+  if (!g_video_backend->Initialized())
   {
-    PanicAlertFmt("Failed to initialize video backend!");
-    return;
+    if (!g_video_backend->Initialize(wsi))
+    {
+      PanicAlertFmt("Failed to initialize video backend!");
+      return;
+    }
+
+    g_shader_cache->InitializeShaderCache();
   }
   Common::ScopeGuard video_guard{[] {
     // Clear on screen messages that haven't expired

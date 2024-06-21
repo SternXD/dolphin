@@ -18,6 +18,11 @@
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 #endif
 
+#ifdef WINRT_XBOX
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
+#endif
+
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AbstractPipeline.h"
 #include "VideoCommon/AbstractShader.h"

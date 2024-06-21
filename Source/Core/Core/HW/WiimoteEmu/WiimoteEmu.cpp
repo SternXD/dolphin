@@ -853,6 +853,11 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
                                         "/Xbox One Game Controller:Rumble 0`");
 #endif
 
+#if WINRT_XBOX
+  m_rumble->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                        "/Xbox One Game Controller:Rumble 0`");
+#endif
+
   // Enable Nunchuk:
   constexpr ExtensionNumber DEFAULT_EXT = ExtensionNumber::NUNCHUK;
   m_attachments->SetSelectedAttachment(DEFAULT_EXT);
