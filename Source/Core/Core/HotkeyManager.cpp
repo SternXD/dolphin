@@ -39,6 +39,10 @@ constexpr std::array<const char*, NUM_HOTKEYS> s_hotkey_labels{{
     _trans("Activate NetPlay Chat"),
     _trans("Control NetPlay Golf Mode"),
     _trans("Show On-Screen Menu"),
+    
+#ifdef USE_RETRO_ACHIEVEMENTS
+    _trans("Open Achievements"),
+#endif  // USE_RETRO_ACHIEVEMENTS
 
     _trans("Volume Down"),
     _trans("Volume Up"),
@@ -331,7 +335,14 @@ struct HotkeyGroupInfo
 };
 
 constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
-    {{_trans("General"), HK_OPEN, HK_TOGGLE_ONSCREEN_MENU},
+#ifndef WINRT_XBOX
+     {{_trans("General"), HK_OPEN, HK_TOGGLE_ONSCREEN_MENU},
+#endif
+#ifdef USE_RETRO_ACHIEVEMENTS
+     {{_trans("General"), HK_OPEN, HK_OPEN_ACHIEVEMENTS},
+#else   // USE_RETRO_ACHIEVEMENTS
+     {{_trans("General"), HK_OPEN, HK_REQUEST_GOLF_CONTROL},
+#endif  // USE_RETROACHIEVEMENTS
      {_trans("Volume"), HK_VOLUME_DOWN, HK_VOLUME_TOGGLE_MUTE},
      {_trans("Emulation Speed"), HK_DECREASE_EMULATION_SPEED, HK_TOGGLE_THROTTLE},
      {_trans("Frame Advance"), HK_FRAME_ADVANCE, HK_FRAME_ADVANCE_RESET_SPEED},
@@ -449,6 +460,9 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
   set_key_expression(HK_STOP, "Escape");
   set_key_expression(HK_FULLSCREEN, hotkey_string({"Alt", "Return"}));
 #endif
+#ifdef USE_RETRO_ACHIEVEMENTS
+  set_key_expression(HK_OPEN_ACHIEVEMENTS, hotkey_string({"Alt", "A"}));
+#endif  // USE_RETRO_ACHIEVEMENTS
   set_key_expression(HK_STEP, "F11");
   set_key_expression(HK_STEP_OVER, hotkey_string({"Shift", "F10"}));
   set_key_expression(HK_STEP_OUT, hotkey_string({"Shift", "F11"}));
