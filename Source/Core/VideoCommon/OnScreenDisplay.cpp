@@ -237,7 +237,7 @@ void DrawInGameMenu()
             UWP::g_shutdown_requested.Set();
 
             s_show_menu = false;
-            Core::SetState(Core::State::Running);
+            Core::SetState(Core::System::GetInstance(), Core::State::Running);
           }
           else
           {
@@ -261,20 +261,20 @@ void DrawInGameMenu()
 
             if (ImGui::Button(std::format("Load State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread([i] {
+              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
-                Core::SetState(Core::State::Running);
+                Core::SetState(system, Core::State::Running);
                 State::Load(system, i);
               }, false);
             }
 
             if (ImGui::Button(std::format("Save State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread([i] {
+              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
-                Core::SetState(Core::State::Running);
+                Core::SetState(system, Core::State::Running);
                 State::Save(system, i);
               }, false);
             }
