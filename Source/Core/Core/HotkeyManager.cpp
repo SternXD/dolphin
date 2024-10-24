@@ -334,7 +334,9 @@ struct HotkeyGroupInfo
 };
 
 constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
-#ifdef USE_RETRO_ACHIEVEMENTS
+#ifdef WINRT_XBOX // TODO: CheeveS?
+    {{_trans("General"), HK_OPEN, HK_TOGGLE_ONSCREEN_MENU},
+#elif defined(USE_RETRO_ACHIEVEMENTS)
     {{_trans("General"), HK_OPEN, HK_OPEN_ACHIEVEMENTS},
 #else   // USE_RETRO_ACHIEVEMENTS
     {{_trans("General"), HK_OPEN, HK_REQUEST_GOLF_CONTROL},
@@ -518,6 +520,6 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
 #ifdef WINRT_XBOX
   set_key_expression(
       HK_TOGGLE_ONSCREEN_MENU,
-      hotkey_string({"`WGInput/0/Xbox One Game Controller:Thumb L`, `WGInput/0/Xbox One Game Controller:Thumb R`"}));
+      "`WGInput/0/Xbox One Game Controller:Thumb L` & `WGInput/0/Xbox One Game Controller:Thumb R`");
 #endif
 }
