@@ -105,11 +105,11 @@ inline winrt::fire_and_forget OpenDiscPicker()
   auto file = co_await openPicker.PickSingleFileAsync();
   if (file)
   {
-    Core::RunAsCPUThread([&file] {
+    Core::RunOnCPUThread(Core::System::GetInstance(), [&file] {
       auto& system = Core::System::GetInstance();
       const Core::CPUThreadGuard guard(system);
       system.GetDVDInterface().ChangeDisc(guard, winrt::to_string(file.Path().data()));
-    });
+    }, false);
   }
 }
 
