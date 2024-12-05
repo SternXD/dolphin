@@ -58,7 +58,7 @@
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
-    <PackageCertificateThumbprint>A41D2A855E0FE476719A99F98CD5DFD1313D0D48</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>5F86C50C9718C321881B13E5FC9ADBEEFB9E229D</PackageCertificateThumbprint>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
