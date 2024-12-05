@@ -58,6 +58,7 @@
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+    <PackageCertificateThumbprint>A41D2A855E0FE476719A99F98CD5DFD1313D0D48</PackageCertificateThumbprint>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -87,6 +88,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir);$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -4957,7 +4959,7 @@
     <ProjectReference Include="$(CoreDir)DolphinLib.vcxproj">
       <Project>{D79392F7-06D6-4B4B-A39F-4D587C215D3A}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\..\source\repos\dolphin\Externals\SDL\SDL\VisualC-WinRT\SDL-UWP.vcxproj">
+    <ProjectReference Include="..\..\Externals\SDL\SDL\VisualC-WinRT\SDL-UWP.vcxproj">
       <Project>{89e9b32e-a86a-47c3-a948-d2b1622925ce}</Project>
     </ProjectReference>
   </ItemGroup>
