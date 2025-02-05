@@ -115,7 +115,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
       g_tried_graceful_shutdown.Clear();
 
       // Dolphin loop
-      while (Core::GetState() != Core::State::Stopping)
+      while (Core::GetState(Core::System::GetInstance()) != Core::State::Stopping)
       {
         auto& system = Core::System::GetInstance();
 
@@ -143,11 +143,12 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           if (HotkeyManagerEmu::IsPressed(HK_TOGGLE_ONSCREEN_MENU, false))
           {
             OSD::ToggleShowSettings();
-            Core::SetState(Core::GetState() == Core::State::Paused ? Core::State::Running :
+            Core::SetState(Core::GetState(Core::System::GetInstance()) == Core::State::Paused ?
+                               Core::State::Running :
                                                                       Core::State::Paused);
           }
 
-          if (Core::GetState() == Core::State::Paused)
+          if (Core::GetState(Core::System::GetInstance()) == Core::State::Paused)
           {
             g_presenter->Present();
           }
