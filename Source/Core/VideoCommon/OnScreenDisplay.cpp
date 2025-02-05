@@ -256,7 +256,7 @@ void DrawInGameMenu()
 
             if (ImGui::Button(std::format("Load State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread([i] {
+              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
                 Core::SetState(Core::State::Running);
@@ -266,7 +266,7 @@ void DrawInGameMenu()
 
             if (ImGui::Button(std::format("Save State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread([i] {
+              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
                 Core::SetState(Core::State::Running);
