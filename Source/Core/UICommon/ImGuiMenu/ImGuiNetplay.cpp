@@ -514,7 +514,7 @@ void ImGuiNetPlay::BootGame(const std::string& filename,
 
 void ImGuiNetPlay::DisplayMessage(std::string msg, int duration, float r, float g, float b)
 {
-  if (g_ActiveConfig.bShowNetPlayMessages && Core::IsRunning())
+  if (g_ActiveConfig.bShowNetPlayMessages && Core::IsRunning(Core::System::GetInstance()))
     g_netplay_chat_ui->AppendChat(msg, {r, g, b});
 }
 
