@@ -426,6 +426,11 @@ void Host_TitleChanged()
 {
 }
 
+bool Host_TASInputHasFocus()
+{
+  return false;
+}
+
 void Host_UpdateDiscordClientID(const std::string& client_id)
 {
 }
