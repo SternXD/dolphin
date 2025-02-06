@@ -232,7 +232,7 @@ void DrawInGameMenu()
             UWP::g_shutdown_requested.Set();
 
             s_show_menu = false;
-            Core::SetState(Core::State::Running);
+            Core::SetState(Core::System::GetInstance(), Core::State::Running);
           }
           else
           {
@@ -259,7 +259,7 @@ void DrawInGameMenu()
               Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
-                Core::SetState(Core::State::Running);
+                Core::SetState(Core::System::GetInstance(), Core::State::Running);
                 State::Load(system, i);
               }, false);
             }
@@ -269,7 +269,7 @@ void DrawInGameMenu()
               Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
                 s_show_menu = false;
                 auto& system = Core::System::GetInstance();
-                Core::SetState(Core::State::Running);
+                Core::SetState(Core::System::GetInstance(), Core::State::Running);
                 State::Save(system, i);
               }, false);
             }

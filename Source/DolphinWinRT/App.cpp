@@ -143,9 +143,10 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           if (HotkeyManagerEmu::IsPressed(HK_TOGGLE_ONSCREEN_MENU, false))
           {
             OSD::ToggleShowSettings();
-            Core::SetState(Core::GetState(Core::System::GetInstance()) == Core::State::Paused ?
+            Core::SetState(Core::System::GetInstance(),
+                           (Core::GetState(Core::System::GetInstance()) == Core::State::Paused) ?
                                Core::State::Running :
-                                                                      Core::State::Paused);
+                               Core::State::Paused);
           }
 
           if (Core::GetState(Core::System::GetInstance()) == Core::State::Paused)
