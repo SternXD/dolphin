@@ -132,7 +132,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
         ::Core::HostDispatchJobs(system);
 
-        if (Core::IsRunningAndStarted())
+        if (Core::IsRunning(Core::System::GetInstance()))
         {
           Core::UpdateInputGate(false);
           HotkeyManagerEmu::GetStatus(false);

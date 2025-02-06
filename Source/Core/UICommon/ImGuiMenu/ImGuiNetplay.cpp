@@ -629,7 +629,7 @@ void ImGuiNetPlay::OnTraversalStateChanged(Common::TraversalClient::State state)
 
 void ImGuiNetPlay::OnGameStartAborted()
 {
-  if (Core::IsRunningAndStarted())
+  if (Core::IsRunning(Core::System::GetInstance()))
   {
 #ifdef WINRT_XBOX
     // todo make the host manage this
