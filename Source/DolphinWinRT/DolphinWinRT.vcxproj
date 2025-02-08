@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="App.h" />
     <ClInclude Include="Host.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UWPUtils.h" />
