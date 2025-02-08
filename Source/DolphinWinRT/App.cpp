@@ -369,6 +369,18 @@ std::vector<std::string> Host_GetPreferredLocales()
   return {};
 }
 
+void Host_JitCacheCleared()
+{
+}
+
+void Host_JitProfileDataWiped()
+{
+}
+
+void Host_NotifyMapLoaded()
+{
+}
+
 void Host_PPCSymbolsChanged()
 {
 }
