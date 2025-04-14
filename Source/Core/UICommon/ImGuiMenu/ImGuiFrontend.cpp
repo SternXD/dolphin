@@ -897,9 +897,9 @@ void CreateGraphicsTab(UIState* state)
     for (int i = 0; i < 5; i++)
     {
       ImGui::PushID(i);
-      if (ImGui::RadioButton(anisolevel_items[i], i == aniso))
+      if (ImGui::RadioButton(anisolevel_items[i], static_cast<int>(aniso) == i))
       {
-        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, i);
+        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, static_cast<AnisotropicFilteringMode>(i));
         Config::Save();
       }
       ImGui::PopID();

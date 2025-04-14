@@ -26,6 +26,7 @@ using namespace winrt;
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/Config/NetplaySettings.h"
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/SyncIdentifier.h"
 #include "Core/IOS/FS/FileSystem.h"
 
@@ -514,7 +515,7 @@ void ImGuiNetPlay::BootGame(const std::string& filename,
 
 void ImGuiNetPlay::DisplayMessage(std::string msg, int duration, float r, float g, float b)
 {
-  if (g_ActiveConfig.bShowNetPlayMessages && Core::IsRunning(Core::System::GetInstance()))
+  if (Config::Get(Config::GFX_SHOW_NETPLAY_MESSAGES) && Core::IsRunning(Core::System::GetInstance()))
     g_netplay_chat_ui->AppendChat(msg, {r, g, b});
 }
 
