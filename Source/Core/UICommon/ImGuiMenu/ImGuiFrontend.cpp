@@ -130,7 +130,11 @@ ImGuiFrontend::ImGuiFrontend()
     }
   }
 
-  ImGui::GetIO().KeyMap[ImGuiKey_Backspace] = '\b';
+ ImGuiIO& io = ImGui::GetIO();
+
+  io.AddKeyEvent(ImGuiKey_Backspace, true);  // When key is pressed
+
+  io.AddKeyEvent(ImGuiKey_Backspace, false);  // When key is released
 
   std::string profiles_path = File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
                               Wiimote::GetConfig()->GetProfileDirectoryName();
@@ -431,20 +435,30 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       }
     }
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.KeysDown[0x08] = false;
+
+ImGuiIO& io = ImGui::GetIO();
 
     {
       std::unique_lock lk(UWP::g_buffer_mutex);
+
       for (uint32_t c : UWP::g_char_buffer)
+
       {
         io.AddInputCharacter(c);
 
         if (c == '\b')
+
         {
-          io.KeysDown[0x08] = true;
+          // First send key press event
+
+          io.AddKeyEvent(ImGuiKey_Backspace, true);
+
+          // Then immediately send key release event since this is a one-time character input
+
+          io.AddKeyEvent(ImGuiKey_Backspace, false);
         }
       }
+
       UWP::g_char_buffer.clear();
     }
 
@@ -461,18 +475,19 @@ FrontendResult ImGuiFrontend::RunMainLoop()
                          ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
                          ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav))
     {
-      ImGui::Image(m_selected_theme->GetBackground(m_state.currentBG).get(),
+      ImGui::Image((ImTextureID)(intptr_t)m_selected_theme->GetBackground(m_state.currentBG).get(),
                    ImGui::GetIO().DisplaySize);
 
       if (m_state.showListView)
       {
         ImGui::SetCursorPos(ImVec2(0, 0));
-        ImGui::Image(m_selected_theme->GetBackground(BG_List_UI).get(), ImGui::GetIO().DisplaySize);
+        ImGui::Image((ImTextureID)(intptr_t)m_selected_theme->GetBackground(BG_List_UI).get(),
+                     ImGui::GetIO().DisplaySize);
       }
       else if (!m_state.showSettingsWindow && g_netplay_dialog == nullptr)
       {
         ImGui::SetCursorPos(ImVec2(0, 0));
-        ImGui::Image(m_selected_theme->GetBackground(BG_Carousel_UI).get(),
+        ImGui::Image((ImTextureID)(intptr_t)m_selected_theme->GetBackground(BG_Carousel_UI).get(),
                      ImGui::GetIO().DisplaySize);
       }
 
@@ -1634,10 +1649,15 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
   long timeSinceInit = std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::high_resolution_clock::now() - m_time_since_init)
                            .count();
-  if (ImGui::GetIO().NavInputs[ImGuiNavInput_Activate] > 0.5f && timeSinceInit > 1500)
+
+  // Add a small delay to prevent accidental game starts during controller initialization
+  // This is a safety measure to avoid unintended game launches
+  if (ImGui::IsKeyDown(ImGuiKey_GamepadFaceDown) && timeSinceInit > 1500)
   {
     if (m_displayed_games.size() != 0)
+    {
       return m_displayed_games[m_selectedGameIdx];
+    }
   }
 
   // Display 5 games, 2 games to the left of the selection, 2 games to the right.
