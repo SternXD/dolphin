@@ -698,7 +698,7 @@ void Shutdown()
 #endif
 #endif
 #endif
-  Reset(CalledFromReadThread::No);
+  GCAdapter::Reset(GCAdapter::CalledFromReadThread::No);
 
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
   s_libusb_context.reset();
