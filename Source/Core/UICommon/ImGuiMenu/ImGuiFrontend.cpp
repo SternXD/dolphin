@@ -2031,10 +2031,14 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.8\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.8.1 (Based on Dolphin 2503-204)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
-          "frontend, developed by SirMangler.\n"
-          "Support me on Ko-Fi: https://ko-fi.com/sirmangler\n\n"
+          "frontend\n\n"
+          "Credits:\n\n"
+          "Dolphin: for their amazing work on Dolphin Emulator\n"
+          "SirMangler: for their amazing work on porting Dolphin for UWP\n"
+          "worleydl: For his oct2024-rebase branch (it helped so much)\n"
+          "SirManglers Ko-Fi: https://ko-fi.com/sirmangler\n\n"
           "Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.");
       break;
     }
