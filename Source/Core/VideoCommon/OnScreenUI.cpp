@@ -230,12 +230,38 @@ void OnScreenUI::BeginImGuiFrameUnlocked(u32 width, u32 height)
   {
     device->UpdateInput();
 
-    io.NavInputs[ImGuiNavInput_Activate] = WGINPUT("Button A");
-    io.NavInputs[ImGuiNavInput_Cancel] = WGINPUT("Button B");
-    io.NavInputs[ImGuiNavInput_DpadUp] = WGINPUT("Left Y+") + WGINPUT("Pad N");
-    io.NavInputs[ImGuiNavInput_DpadDown] = WGINPUT("Left Y-") + WGINPUT("Pad S");
-    io.NavInputs[ImGuiNavInput_DpadLeft] = WGINPUT("Left X-") + WGINPUT("Pad W");
-    io.NavInputs[ImGuiNavInput_DpadRight] = WGINPUT("Left X+") + WGINPUT("Pad E");
+
+    // Activate (A button)
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadFaceDown, WGINPUT("Button A") > 0.0f, WGINPUT("Button A"));
+
+    // Cancel (B button)
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadFaceRight, WGINPUT("Button B") > 0.0f, WGINPUT("Button B"));
+
+    // D-pad Up
+
+    float dpadUp = WGINPUT("Left Y+") + WGINPUT("Pad N");
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadDpadUp, dpadUp > 0.0f, dpadUp);
+
+    // D-pad Down
+
+    float dpadDown = WGINPUT("Left Y-") + WGINPUT("Pad S");
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadDpadDown, dpadDown > 0.0f, dpadDown);
+
+    // D-pad Left
+
+    float dpadLeft = WGINPUT("Left X-") + WGINPUT("Pad W");
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadDpadLeft, dpadLeft > 0.0f, dpadLeft);
+
+    // D-pad Right
+
+    float dpadRight = WGINPUT("Left X+") + WGINPUT("Pad E");
+
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadDpadRight, dpadRight > 0.0f, dpadRight);
   }
 #endif
 
