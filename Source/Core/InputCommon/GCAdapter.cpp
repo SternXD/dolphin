@@ -697,7 +697,8 @@ void Shutdown()
     libusb_hotplug_deregister_callback(*s_libusb_context, s_hotplug_handle);
 #endif
 #endif
-  Reset(CalledFromReadThread::No);
+#endif
+  GCAdapter::Reset(GCAdapter::CalledFromReadThread::No);
 
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
   s_libusb_context.reset();
