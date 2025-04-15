@@ -604,6 +604,25 @@ void CreateGeneralTab(UIState* state)
       Config::Save();
   }
 
+  // Create a list of display strings (e.g., 0.1x to 2.0x in 0.1 increments)
+  const char* speed_limit_items[] = {"0.1x", "0.2x", "0.3x", "0.4x", "0.5x", "0.6x", "0.7x",
+                                     "0.8x", "0.9x", "1.0x", "1.1x", "1.2x", "1.3x", "1.4x",
+                                     "1.5x", "1.6x", "1.7x", "1.8x", "1.9x", "2.0x"};
+
+  // Convert current config value to index.
+  static int current_speed_index =
+      static_cast<int>(Config::Get(Config::MAIN_EMULATION_SPEED) * 10.0f);
+
+  // Render the combo box.
+  if (ImGui::Combo("Speed Limit", &current_speed_index, speed_limit_items,
+                   IM_ARRAYSIZE(speed_limit_items)))
+  {
+    // Update the config when the selection changes.
+    float new_speed = current_speed_index * 0.1f;
+    Config::SetBaseOrCurrent(Config::MAIN_EMULATION_SPEED, new_speed);
+    Config::Save();
+  }
+
   const auto fallback = Config::Get(Config::MAIN_FALLBACK_REGION);
   if (ImGui::TreeNode("Fallback Region"))
   {
@@ -1097,6 +1116,13 @@ void CreateWiiTab(UIState* state)
   if (ImGui::Checkbox("Enable PAL60", &pal60))
   {
     Config::SetBaseOrCurrent(Config::SYSCONF_PAL60, pal60);
+    Config::Save();
+  }
+
+  bool enable_wiilink = Config::Get(Config::MAIN_WII_WIILINK_ENABLE);
+  if (ImGui::Checkbox("Enable WiiConnect24 via WiiLink", &enable_wiilink))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_WII_WIILINK_ENABLE, enable_wiilink);
     Config::Save();
   }
 
@@ -1883,7 +1909,7 @@ void ImGuiFrontend::LoadThemes()
   
   if (!m_selected_theme)
   {
-    m_selected_theme = &m_themes["Default"];
+    m_selected_theme = &m_themes["Flipper 2.2 - Beached"];
   }
 }
 
