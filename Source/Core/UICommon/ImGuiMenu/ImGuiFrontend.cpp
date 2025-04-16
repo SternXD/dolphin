@@ -10,8 +10,12 @@
 
 #include "ImGuiNetplay.h"
 #include "WinRTKeyboard.h"
+#include "ImageLoader.h"
 
 #include <imgui.h>
+
+// Include stb_image before defining implementation
+#include "../../../../Externals/tinygltf/tinygltf/stb_image.h"
 
 #ifdef WINRT_XBOX
 #include <winrt/Windows.UI.Core.h>
@@ -1782,28 +1786,34 @@ AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameF
 
 std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path)
 {
-  std::string png;
-  if (!File::ReadFileToString(path, png))
+  // First try to read the file into a buffer
+  std::string file_data;
+  if (!File::ReadFileToString(path, file_data))
     return {};
 
-  std::vector<uint8_t> buffer = {png.begin(), png.end()};
+  std::vector<unsigned char> buffer = {file_data.begin(), file_data.end()};
   if (buffer.empty())
     return {};
 
-  std::vector<uint8_t> data;
-  u32 width, height;
-  Common::LoadPNG(buffer, &data, &width, &height);
+  // Use stb_image to load the image data
+  int width, height, channels;
+  unsigned char* image_data = stbi_load_from_memory(buffer.data(), static_cast<int>(buffer.size()), 
+                                                  &width, &height, &channels, 4);
+  if (!image_data)
+    return {};
 
   TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
 
   std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, path);
   if (!tex)
   {
+    stbi_image_free(image_data);
     PanicAlertFmt("Failed to create ImGui texture");
     return {};
   }
 
-  tex->Load(0, width, height, width, data.data(), sizeof(u32) * width * height);
+  tex->Load(0, width, height, width, image_data, sizeof(u32) * width * height);
+  stbi_image_free(image_data);
 
   return std::move(tex);
 }
@@ -2080,10 +2090,25 @@ std::shared_ptr<AbstractTexture> FrontendTheme::GetBackground(ThemeBG cat)
 
 bool FrontendTheme::TryLoad(std::string path)
 {
-  const auto SetThemeOrBackup = [=](ThemeBG target, ThemeBG backup, std::string p) {
-    if (File::Exists(p))
+  const auto SetThemeOrBackup = [=](ThemeBG target, ThemeBG backup, std::string basePath) {
+    // Try both PNG and JPEG/JPG formats
+    std::string pngPath = basePath + ".png";
+    std::string jpgPath = basePath + ".jpg";
+    std::string jpegPath = basePath + ".jpeg";
+
+    if (File::Exists(pngPath))
     {
-      auto bg = CreateTextureFromPath(p);
+      auto bg = CreateTextureFromPath(pngPath);
+      m_textures[target] = std::move(bg);
+    }
+    else if (File::Exists(jpgPath))
+    {
+      auto bg = CreateTextureFromPath(jpgPath);
+      m_textures[target] = std::move(bg);
+    }
+    else if (File::Exists(jpegPath))
+    {
+      auto bg = CreateTextureFromPath(jpegPath);
       m_textures[target] = std::move(bg);
     }
 
@@ -2093,43 +2118,90 @@ bool FrontendTheme::TryLoad(std::string path)
     }
   };
 
-  if (!File::Exists(path + "\\carousel_background_all.png") ||
-      !File::Exists(path + "\\menu_background.png") ||
-      !File::Exists(path + "\\list_ui.png") ||
-      !File::Exists(path + "\\carousel_ui.png"))
+  // Check for required files in both PNG and JPEG formats
+  bool hasCarouselBg = File::Exists(path + "\\carousel_background_all.png") ||
+                      File::Exists(path + "\\carousel_background_all.jpg") ||
+                      File::Exists(path + "\\carousel_background_all.jpeg");
+  
+  bool hasMenuBg = File::Exists(path + "\\menu_background.png") ||
+                   File::Exists(path + "\\menu_background.jpg") ||
+                   File::Exists(path + "\\menu_background.jpeg");
+  
+  bool hasListUi = File::Exists(path + "\\list_ui.png") ||
+                   File::Exists(path + "\\list_ui.jpg") ||
+                   File::Exists(path + "\\list_ui.jpeg");
+  
+  bool hasCarouselUi = File::Exists(path + "\\carousel_ui.png") ||
+                       File::Exists(path + "\\carousel_ui.jpg") ||
+                       File::Exists(path + "\\carousel_ui.jpeg");
+
+  if (!hasCarouselBg || !hasMenuBg || !hasListUi || !hasCarouselUi)
   {
     return false;
   }
 
-  auto all_bg = CreateTextureFromPath(path + "\\carousel_background_all.png");
+  // Try loading carousel background in either format
+  std::shared_ptr<AbstractTexture> all_bg;
+  if (File::Exists(path + "\\carousel_background_all.png"))
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.png");
+  else if (File::Exists(path + "\\carousel_background_all.jpg"))
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpg");
+  else if (File::Exists(path + "\\carousel_background_all.jpeg"))
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpeg");
+
   if (!all_bg)
     return false;
 
   m_textures[ThemeBG::BG_All] = all_bg;
 
-  auto menu_bg = CreateTextureFromPath(path + "\\menu_background.png");
+  // Try loading menu background in either format
+  std::shared_ptr<AbstractTexture> menu_bg;
+  if (File::Exists(path + "\\menu_background.png"))
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.png");
+  else if (File::Exists(path + "\\menu_background.jpg"))
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpg");
+  else if (File::Exists(path + "\\menu_background.jpeg"))
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpeg");
+
   if (!menu_bg)
     return false;
 
   m_textures[ThemeBG::BG_Menu] = menu_bg;
 
-  auto list_ui_bg= CreateTextureFromPath(path + "\\list_ui.png");
+  // Try loading list UI in either format
+  std::shared_ptr<AbstractTexture> list_ui_bg;
+  if (File::Exists(path + "\\list_ui.png"))
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.png");
+  else if (File::Exists(path + "\\list_ui.jpg"))
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpg");
+  else if (File::Exists(path + "\\list_ui.jpeg"))
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpeg");
+
   if (!list_ui_bg)
     return false;
 
   m_textures[ThemeBG::BG_List_UI] = list_ui_bg;
 
-  auto carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.png");
+  // Try loading carousel UI in either format
+  std::shared_ptr<AbstractTexture> carousel_ui_bg;
+  if (File::Exists(path + "\\carousel_ui.png"))
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.png");
+  else if (File::Exists(path + "\\carousel_ui.jpg"))
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpg");
+  else if (File::Exists(path + "\\carousel_ui.jpeg"))
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpeg");
+
   if (!carousel_ui_bg)
     return false;
 
   m_textures[ThemeBG::BG_Carousel_UI] = carousel_ui_bg;
 
-  SetThemeOrBackup(BG_Wii, BG_All, path + "\\carousel_background_wii.png");
-  SetThemeOrBackup(BG_GC, BG_All, path + "\\carousel_background_gamecube.png");
-  SetThemeOrBackup(BG_Other, BG_All, path + "\\carousel_background_other.png");
-  SetThemeOrBackup(BG_List, BG_Menu, path + "\\menu_background_list.png");
-  SetThemeOrBackup(BG_Netplay, BG_Menu, path + "\\menu_background_netplay.png");
+  // Load optional theme elements with fallbacks
+  SetThemeOrBackup(BG_Wii, BG_All, path + "\\carousel_background_wii");
+  SetThemeOrBackup(BG_GC, BG_All, path + "\\carousel_background_gamecube");
+  SetThemeOrBackup(BG_Other, BG_All, path + "\\carousel_background_other");
+  SetThemeOrBackup(BG_List, BG_Menu, path + "\\menu_background_list");
+  SetThemeOrBackup(BG_Netplay, BG_Menu, path + "\\menu_background_netplay");
 
   m_name = std::filesystem::path(path).filename().string();
 
