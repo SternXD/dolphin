@@ -34,87 +34,6 @@
     <Image Include="Assets\LockScreenLogo.scale-200.png">
       <Filter>Assets</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_all.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_gamecube.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_list.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_netplay.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_other.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_wii.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\list_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Beached\menu_background.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_all.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_gamecube.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_list.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_netplay.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_other.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_wii.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\list_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Parched\menu_background.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_all.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_gamecube.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_list.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_netplay.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_other.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_wii.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\list_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Wooden\menu_background.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
-    </Image>
     <Image Include="Sys\FrontendThemes\Flipper 1\carousel_background_all.png">
       <Filter>Sys\FrontendThemes\Flipper 1</Filter>
     </Image>
@@ -136,44 +55,125 @@
     <Image Include="Sys\FrontendThemes\Flipper 1\menu_background.png">
       <Filter>Sys\FrontendThemes\Flipper 1</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\carousel_background_all.png">
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_all.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_gamecube.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_list.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_netplay.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_other.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_wii.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\menu_background.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Ascended\list_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_all.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_gamecube.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_list.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_netplay.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_other.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_background_wii.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\list_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Beached\menu_background.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Beached</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\carousel_background_all.jpg">
       <Filter>Sys\FrontendThemes\Flipper 2.2 - Blackout %28Performance%29</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\carousel_ui.png">
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\carousel_ui.png">
       <Filter>Sys\FrontendThemes\Flipper 2.2 - Blackout %28Performance%29</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\list_ui.png">
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\list_ui.png">
       <Filter>Sys\FrontendThemes\Flipper 2.2 - Blackout %28Performance%29</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\menu_background.png">
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Blackout (Performance)\menu_background.jpg">
       <Filter>Sys\FrontendThemes\Flipper 2.2 - Blackout %28Performance%29</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_all.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_all.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_gamecube.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_gamecube.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_list.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_list.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_netplay.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_netplay.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_other.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_other.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_background_wii.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_background_wii.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\carousel_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\list_ui.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\list_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
     </Image>
-    <Image Include="Sys\FrontendThemes\Flipper 2.2 - Ascended\menu_background.png">
-      <Filter>Sys\FrontendThemes\Flipper 2.2 - Ascended</Filter>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Parched\menu_background.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Parched</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_all.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_gamecube.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_list.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_netplay.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_other.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_background_wii.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\carousel_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\list_ui.png">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
+    </Image>
+    <Image Include="..\..\Data\Sys\FrontendThemes\Flipper 2.2 - Wooden\menu_background.jpg">
+      <Filter>Sys\FrontendThemes\Flipper 2.2 - Wooden</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
