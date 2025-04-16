@@ -22,14 +22,28 @@
 #include "Core/State.h"
 
 #ifdef WINRT_XBOX
+#include <winrt/Windows.UI.Core.h>
+#include <winrt/Windows.ApplicationModel.Core.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/windows.graphics.display.core.h>
+#include <winrt/windows.gaming.input.h>
+#include <windows.applicationmodel.h>
+#include <gamingdeviceinformation.h>
+
 #include "DolphinWinRT/Host.h"
 #include "DolphinWinRT/UWPUtils.h"
+
+using winrt::Windows::UI::Core::CoreWindow;
+using namespace winrt;
 #endif
 
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AbstractTexture.h"
 #include "VideoCommon/Assets/CustomTextureData.h"
 #include "VideoCommon/TextureConfig.h"
+#include "VideoCommon/VideoConfig.h"
+#include "VideoCommon/VideoBackendBase.h"
+#include "Common/WindowSystemInfo.h"
 
 namespace OSD
 {
@@ -234,13 +248,35 @@ void DrawInGameMenu()
         {
           if (!UWP::g_tried_graceful_shutdown.TestAndClear())
           {
+            // First hide the menu and clear any OSD messages
+            s_show_menu = false;
+            ClearMessages();
+
+            // Wait for any pending GPU operations to complete
+            if (g_gfx)
+            {
+              g_gfx->WaitForGPUIdle();
+            }
+
+            // Stop the core first to prevent event processing
+            Core::Stop(Core::System::GetInstance());
+            Core::Shutdown(Core::System::GetInstance());
+
+            // Request shutdown but DO NOT force a frontend reset immediately
             UWP::g_shutdown_requested.Set();
 
-            s_show_menu = false;
-            Core::SetState(Core::System::GetInstance(), Core::State::Running);
+            // If we want to return to the frontend later, we can set this after proper cleanup
+            // UWP::g_needs_frontend_reset.Set();
           }
           else
           {
+            // If we've already tried graceful shutdown once, force exit
+            if (g_gfx)
+            {
+              g_gfx->WaitForGPUIdle();
+            }
+            Core::Stop(Core::System::GetInstance());
+            Core::Shutdown(Core::System::GetInstance());
             exit(0);
           }
         }

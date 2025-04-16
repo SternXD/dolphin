@@ -63,8 +63,9 @@ namespace UWP
 {
 Common::Flag m_running{false};
 winrt::hstring m_launchOnExit;
-Common::Flag g_shutdown_requested {false};
-Common::Flag g_tried_graceful_shutdown {false};
+Common::Flag g_shutdown_requested{false};
+Common::Flag g_tried_graceful_shutdown{false};
+Common::Flag g_needs_frontend_reset{false};
 
 struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 {
@@ -96,8 +97,25 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     while (true)
     {
       // ImGUI frontend
-      if (!m_running.IsSet())
+      if (!m_running.IsSet() || g_needs_frontend_reset.TestAndClear())
       {
+        // Ensure we're fully cleaned up before starting new frontend
+        if (Core::IsRunning(Core::System::GetInstance()))
+        {
+          Core::Stop(Core::System::GetInstance());
+        }
+        Core::Shutdown(Core::System::GetInstance());
+        
+        // Reset flags
+        g_shutdown_requested.Clear();
+        g_tried_graceful_shutdown.Clear();
+        
+        // Reinitialize UI systems
+        UICommon::Shutdown();
+        UICommon::Init();
+        UICommon::InitControllers({});
+        
+        // Create and run new frontend
         auto frontend = new ImGuiFrontend::ImGuiFrontend();
         auto result = frontend->RunUntilSelection();
         auto game = result.game_result;
@@ -110,6 +128,8 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         {
           InitializeDolphinForNetplay();
         }
+
+        delete frontend;
       }
 
       g_tried_graceful_shutdown.Clear();
@@ -126,7 +146,10 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
           Core::Stop(system);
           Core::Shutdown(system);
-
+          m_running.Clear();
+          
+          // Only set frontend reset after proper cleanup
+          g_needs_frontend_reset.Set();
           break;
         }
 
@@ -235,15 +258,21 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
     auto& system = Core::System::GetInstance();
 
+    // Ensure clean state before booting
+    Core::Shutdown(system);
+
     std::unique_ptr<BootParameters> boot =
         BootParameters::GenerateFromFile(path, BootSessionData("", DeleteSavestateAfterBoot::No));
 
     if (!BootManager::BootCore(system, std::move(boot), wsi))
     {
       fprintf(stderr, "Could not boot the specified file\n");
+      Core::Shutdown(system);
+      co_return;
     }
 
     m_running.Set();
+    co_return;
   }
 
   void OnClosed(const IInspectable&, const winrt::Windows::UI::Core::CoreWindowEventArgs& args)

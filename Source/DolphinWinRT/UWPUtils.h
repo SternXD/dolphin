@@ -49,6 +49,11 @@ inline std::string GetLocalFolder()
   return winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path());
 }
 
+// Add the flag declarations
+extern Common::Flag g_shutdown_requested;
+extern Common::Flag g_tried_graceful_shutdown;
+extern Common::Flag g_needs_frontend_reset;
+
 #pragma warning(push)
 #pragma warning(disable : 4265)
 inline winrt::fire_and_forget OpenNewUserPicker(std::function<void(std::string)> folderPickedCallback)
