@@ -45,6 +45,7 @@
 #include "Core/Config/WiimoteSettings.h"
 #include "Core/Config/UISettings.h"
 
+#include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
 #include "Common/Image.h"
 #include "Common/Timer.h"
@@ -62,6 +63,10 @@
 
 #include "InputCommon/InputConfig.h"
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
+
+#include "AudioCommon/AudioCommon.h"
+#include "AudioCommon/Enums.h"
+#include "AudioCommon/WASAPIStream.h"
 
 namespace WGI = winrt::Windows::Gaming::Input;
 using winrt::Windows::UI::Core::CoreWindow;
@@ -722,6 +727,13 @@ void CreateGraphicsTab(UIState* state)
     Config::Save();
   }
 
+  bool viSkipEnable = Config::Get(Config::GFX_HACK_VI_SKIP);
+  if (ImGui::Checkbox("Enable VI Skip", &viSkipEnable))
+  {
+    Config::SetBaseOrCurrent(Config::GFX_HACK_VI_SKIP, viSkipEnable);
+    Config::Save();
+  }
+
   bool scaledEfb = Config::Get(Config::GFX_HACK_COPY_EFB_SCALED);
   if (ImGui::Checkbox("Scaled EFB Copy", &scaledEfb))
   {
@@ -968,11 +980,11 @@ void CreateControlsTab(UIState* state)
 
 void CreateGameCubeTab(UIState* state)
 {
-  const char* language_items[] = {"English", "German", "French", "Spanish", "Italian", "Dutch"};
-  auto lang = Config::Get(Config::MAIN_GC_LANGUAGE);
-
-  if (ImGui::TreeNode("System Language"))
+  if (ImGui::TreeNode("IPL Settings"))
   {
+    const char* language_items[] = {"English", "German", "French", "Spanish", "Italian", "Dutch"};
+    auto lang = Config::Get(Config::MAIN_GC_LANGUAGE);
+
     for (int i = 0; i < 6; i++)
     {
       ImGui::PushID(i);
@@ -982,6 +994,29 @@ void CreateGameCubeTab(UIState* state)
           Config::Save();
       }
       ImGui::PopID();
+    }
+
+    bool have_menu = false;
+    for (const std::string dir : {"USA", "JAP", "EUR"})
+    {
+      const auto path = "/" + dir + "/" + GC_IPL;
+      if (File::Exists(File::GetUserPath(D_GCUSER_IDX) + path) ||
+          File::Exists(File::GetSysDirectory() + GC_SYS_DIR + path))
+      {
+        have_menu = true;
+        break;
+      }
+    }
+
+    bool skip_ipl = Config::Get(Config::MAIN_SKIP_IPL);
+    if (ImGui::Checkbox("Skip Main Menu", &skip_ipl))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_SKIP_IPL, skip_ipl);
+      Config::Save();
+    }
+    if (!have_menu)
+    {
+      ImGui::TextWrapped("Put IPL ROMs in User/GC/<region>.");
     }
 
     ImGui::TreePop();
@@ -1129,6 +1164,7 @@ void CreateWiiTab(UIState* state)
     Config::SetBaseOrCurrent(Config::SYSCONF_PAL60, pal60);
     Config::Save();
   }
+  ImGui::TextWrapped("Enables PAL60 mode (480p) instead of standard PAL (576i) for PAL games.");
 
   bool enable_wiilink = Config::Get(Config::MAIN_WII_WIILINK_ENABLE);
   if (ImGui::Checkbox("Enable WiiConnect24 via WiiLink", &enable_wiilink))
@@ -1136,6 +1172,7 @@ void CreateWiiTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_WII_WIILINK_ENABLE, enable_wiilink);
     Config::Save();
   }
+  ImGui::TextWrapped("Enables WiiConnect24 features via WiiLink, such as the Wii Mail service.");
 
   const char* language_items[] = {"Japanese", "English", "German", "French",
                                   "Spanish",  "Italian", "Dutch",  "Simplified Chinese",
@@ -1177,16 +1214,162 @@ void CreateWiiTab(UIState* state)
 
     ImGui::TreePop();
   }
+
+  if (ImGui::TreeNode("SD Card Settings"))
+  {
+    bool insert_sd_card = Config::Get(Config::MAIN_WII_SD_CARD);
+    if (ImGui::Checkbox("Insert SD Card", &insert_sd_card))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD, insert_sd_card);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Supports SD and SDHC. Default size is 128 MB.");
+
+    bool allow_sd_writes = Config::Get(Config::MAIN_ALLOW_SD_WRITES);
+    if (ImGui::Checkbox("Allow Writes to SD Card", &allow_sd_writes))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_ALLOW_SD_WRITES, allow_sd_writes);
+      Config::Save();
+    }
+
+    std::string sd_card_path = Config::Get(Config::MAIN_WII_SD_CARD_IMAGE_PATH);
+    char sd_card_path_buf[256];
+    strncpy(sd_card_path_buf, sd_card_path.c_str(), sizeof(sd_card_path_buf));
+    ImGui::InputText("SD Card Path", sd_card_path_buf, sizeof(sd_card_path_buf), ImGuiInputTextFlags_ReadOnly);
+    ImGui::SameLine();
+    if (ImGui::Button("Browse##SDCard"))
+    {
+      state->controlsDisabled = true;
+      UWP::OpenDiscPicker();
+      state->controlsDisabled = false;
+    }
+
+    bool sync_sd_folder = Config::Get(Config::MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC);
+    if (ImGui::Checkbox("Automatically Sync with Folder", &sync_sd_folder))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC, sync_sd_folder);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Synchronizes the SD Card with the SD Sync Folder when starting and ending emulation.");
+
+    std::string sd_sync_folder = Config::Get(Config::MAIN_WII_SD_CARD_SYNC_FOLDER_PATH);
+    char sd_sync_folder_buf[256];
+    strncpy(sd_sync_folder_buf, sd_sync_folder.c_str(), sizeof(sd_sync_folder_buf));
+    ImGui::InputText("SD Sync Folder", sd_sync_folder_buf, sizeof(sd_sync_folder_buf), ImGuiInputTextFlags_ReadOnly);
+    ImGui::SameLine();
+    if (ImGui::Button("Browse##SDSync"))
+    {
+      state->controlsDisabled = true;
+      UWP::OpenGameFolderPicker([state](std::string path) {
+        if (path != "")
+        {
+          Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_SYNC_FOLDER_PATH, path);
+          Config::Save();
+        }
+        state->controlsDisabled = false;
+      });
+    }
+
+    const char* sd_size_items[] = {"128 MB", "256 MB", "512 MB", "1 GB", "2 GB", "4 GB", "8 GB", "16 GB", "32 GB"};
+    u64 sd_size = Config::Get(Config::MAIN_WII_SD_CARD_FILESIZE);
+    int sd_size_index = 0;
+    for (size_t i = 0; i < IM_ARRAYSIZE(sd_size_items); ++i)
+    {
+      if (sd_size == (128 * 1024 * 1024) * (1ULL << i))
+      {
+        sd_size_index = static_cast<int>(i);
+        break;
+      }
+    }
+    if (ImGui::Combo("SD Card File Size", &sd_size_index, sd_size_items, IM_ARRAYSIZE(sd_size_items)))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_FILESIZE, (128 * 1024 * 1024) * (1ULL << sd_size_index));
+      Config::Save();
+    }
+
+    ImGui::TreePop();
+  }
+
+  if (ImGui::TreeNode("Wii Remote Settings"))
+  {
+    bool wiimote_motor = Config::Get(Config::SYSCONF_WIIMOTE_MOTOR);
+    if (ImGui::Checkbox("Enable Rumble", &wiimote_motor))
+    {
+      Config::SetBaseOrCurrent(Config::SYSCONF_WIIMOTE_MOTOR, wiimote_motor);
+      Config::Save();
+    }
+
+    const char* sensor_position_items[] = {"Top", "Bottom"};
+    int sensor_position = Config::Get(Config::SYSCONF_SENSOR_BAR_POSITION);
+    if (ImGui::Combo("Sensor Bar Position", &sensor_position, sensor_position_items, IM_ARRAYSIZE(sensor_position_items)))
+    {
+      Config::SetBaseOrCurrent(Config::SYSCONF_SENSOR_BAR_POSITION, sensor_position);
+      Config::Save();
+    }
+
+    int ir_sensitivity = Config::Get(Config::SYSCONF_SENSOR_BAR_SENSITIVITY);
+    if (ImGui::SliderInt("IR Sensitivity", &ir_sensitivity, 1, 5))
+    {
+      Config::SetBaseOrCurrent(Config::SYSCONF_SENSOR_BAR_SENSITIVITY, ir_sensitivity);
+      Config::Save();
+    }
+
+    int speaker_volume = Config::Get(Config::SYSCONF_SPEAKER_VOLUME);
+    if (ImGui::SliderInt("Speaker Volume", &speaker_volume, 0, 127))
+    {
+      Config::SetBaseOrCurrent(Config::SYSCONF_SPEAKER_VOLUME, speaker_volume);
+      Config::Save();
+    }
+
+    ImGui::TreePop();
+  }
 }
 
 void CreateAdvancedTab(UIState* state)
 {
-  bool viSkipEnable = Config::Get(Config::GFX_HACK_VI_SKIP);
-  if (ImGui::Checkbox("Enable VI Skip", &viSkipEnable))
+  if (ImGui::TreeNode("CPU Options"))
   {
-    Config::SetBaseOrCurrent(Config::GFX_HACK_VI_SKIP, viSkipEnable);
+#ifdef WINRT_XBOX
+    const char* cpu_cores[] = {"Interpreter", "Cached Interpreter", "JIT64"};
+    const int cpu_cores_count = 3;
+#else
+    const char* cpu_cores[] = {"Interpreter", "Cached Interpreter", "JIT64", "JITARM64"};
+    const int cpu_cores_count = 4;
+#endif
+    int current_core = static_cast<int>(Config::Get(Config::MAIN_CPU_CORE));
+    
+    if (ImGui::Combo("CPU Emulation Engine", &current_core, cpu_cores, cpu_cores_count))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_CPU_CORE, static_cast<PowerPC::CPUCore>(current_core));
+      Config::Save();
+    }
+
+    ImGui::TreePop();
+  }
+
+  bool mmuEnable = Config::Get(Config::MAIN_MMU);
+  if (ImGui::Checkbox("Enable MMU", &mmuEnable))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_MMU, mmuEnable);
     Config::Save();
   }
+  ImGui::TextWrapped("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)\n\nIf unsure, leave this unchecked.");
+
+  bool pauseOnPanic = Config::Get(Config::MAIN_PAUSE_ON_PANIC);
+  if (ImGui::Checkbox("Pause on Panic", &pauseOnPanic))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_PAUSE_ON_PANIC, pauseOnPanic);
+    Config::Save();
+  }
+  ImGui::TextWrapped("Pauses the emulation if a Read/Write or Unknown Instruction panic occurs.\nEnabling will affect performance.\nThe performance impact is the same as having Enable MMU on.\n\nIf unsure, leave this unchecked.");
+
+  bool accurateCPUCache = Config::Get(Config::MAIN_ACCURATE_CPU_CACHE);
+  if (ImGui::Checkbox("Enable Write-Back Cache (slow)", &accurateCPUCache))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_ACCURATE_CPU_CACHE, accurateCPUCache);
+    Config::Save();
+  }
+  ImGui::TextWrapped("Enables emulation of the CPU write-back cache.\nEnabling will have a significant impact on performance.\nThis should be left disabled unless absolutely needed.\n\nIf unsure, leave this unchecked.");
 
   bool hiresTexEnable = Config::Get(Config::GFX_HIRES_TEXTURES);
   if (ImGui::Checkbox("Load Custom Textures", &hiresTexEnable))
@@ -1258,6 +1441,105 @@ void CreateAdvancedTab(UIState* state)
       Config::SetBaseOrCurrent(Config::MAIN_OVERCLOCK, clockOverride);
       Config::Save();
     }
+
+    ImGui::TreePop();
+  }
+
+  if (ImGui::TreeNode("Memory Override"))
+  {
+    bool ramOverrideEnable = Config::Get(Config::MAIN_RAM_OVERRIDE_ENABLE);
+    if (ImGui::Checkbox("Enable Emulated Memory Size Override", &ramOverrideEnable))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_RAM_OVERRIDE_ENABLE, ramOverrideEnable);
+      Config::Save();
+    }
+
+    if (ramOverrideEnable)
+    {
+      u32 mem1Size = Config::Get(Config::MAIN_MEM1_SIZE) / 0x100000; // Convert to MB
+      if (ImGui::SliderInt("MEM1 Size (MB)", (int*)&mem1Size, 24, 64))
+      {
+        Config::SetBaseOrCurrent(Config::MAIN_MEM1_SIZE, mem1Size * 0x100000);
+        Config::Save();
+      }
+
+      u32 mem2Size = Config::Get(Config::MAIN_MEM2_SIZE) / 0x100000; // Convert to MB
+      if (ImGui::SliderInt("MEM2 Size (MB)", (int*)&mem2Size, 64, 128))
+      {
+        Config::SetBaseOrCurrent(Config::MAIN_MEM2_SIZE, mem2Size * 0x100000);
+        Config::Save();
+      }
+    }
+
+    ImGui::TextWrapped("Adjusts the amount of RAM in the emulated console.\n\n"
+                      "WARNING: Enabling this will completely break many games. Only a small number "
+                      "of games can benefit from this.");
+
+    ImGui::TreePop();
+  }
+
+  if (ImGui::TreeNode("Custom RTC Options"))
+  {
+    bool customRTCEnable = Config::Get(Config::MAIN_CUSTOM_RTC_ENABLE);
+    if (ImGui::Checkbox("Enable Custom RTC", &customRTCEnable))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_CUSTOM_RTC_ENABLE, customRTCEnable);
+      Config::Save();
+    }
+
+    if (customRTCEnable)
+    {
+      // Get current RTC value
+      u64 customRTC = Config::Get(Config::MAIN_CUSTOM_RTC_VALUE);
+      time_t current_time = customRTC;
+      struct tm* timeinfo = gmtime(&current_time);
+      
+      // Create a date/time picker
+      int year = timeinfo->tm_year + 1900;
+      int month = timeinfo->tm_mon + 1;
+      int day = timeinfo->tm_mday;
+      int hour = timeinfo->tm_hour;
+      int minute = timeinfo->tm_min;
+      int second = timeinfo->tm_sec;
+
+      bool date_changed = false;
+      date_changed |= ImGui::InputInt("Year", &year, 1, 100);
+      date_changed |= ImGui::InputInt("Month", &month, 1, 12);
+      date_changed |= ImGui::InputInt("Day", &day, 1, 31);
+      date_changed |= ImGui::InputInt("Hour", &hour, 1, 23);
+      date_changed |= ImGui::InputInt("Minute", &minute, 1, 59);
+      date_changed |= ImGui::InputInt("Second", &second, 1, 59);
+
+      if (date_changed)
+      {
+        // Validate and clamp values
+        year = std::clamp(year, 2000, 2099);
+        month = std::clamp(month, 1, 12);
+        day = std::clamp(day, 1, 31);
+        hour = std::clamp(hour, 0, 23);
+        minute = std::clamp(minute, 0, 59);
+        second = std::clamp(second, 0, 59);
+
+        // Convert to time_t
+        struct tm new_time = {};
+        new_time.tm_year = year - 1900;
+        new_time.tm_mon = month - 1;
+        new_time.tm_mday = day;
+        new_time.tm_hour = hour;
+        new_time.tm_min = minute;
+        new_time.tm_sec = second;
+        new_time.tm_isdst = -1;
+
+        time_t new_time_t = _mkgmtime(&new_time);
+        if (new_time_t != -1)
+        {
+          Config::SetBaseOrCurrent(Config::MAIN_CUSTOM_RTC_VALUE, static_cast<u64>(new_time_t));
+          Config::Save();
+        }
+      }
+    }
+
+    ImGui::TextWrapped("This setting allows you to set a custom real time clock (RTC) separate from your current system time.\n\nIf unsure, leave this unchecked.");
 
     ImGui::TreePop();
   }
@@ -2015,6 +2297,10 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     {
       state->selectedTab = Graphics;
     }
+    if (ImGui::Selectable("Audio", state->selectedTab == Audio))
+    {
+      state->selectedTab = Audio;
+    }
     if (ImGui::Selectable("Controls", state->selectedTab == Controls))
     {
       state->selectedTab = Controls;
@@ -2056,6 +2342,9 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case Graphics:
       CreateGraphicsTab(state);
+      break;
+    case Audio:
+      CreateAudioTab(state);
       break;
     case Controls:
       CreateControlsTab(state);
@@ -2213,5 +2502,146 @@ bool FrontendTheme::TryLoad(std::string path)
   m_name = std::filesystem::path(path).filename().string();
 
   return true;
+}
+
+void CreateAudioTab(UIState* state)
+{
+  if (ImGui::CollapsingHeader("DSP Options"))
+  {
+    const char* dsp_items[] = {"HLE", "LLE Recompiler", "LLE Interpreter"};
+    int dsp_idx = Config::Get(Config::MAIN_DSP_HLE) ? 0 : (Config::Get(Config::MAIN_DSP_JIT) ? 1 : 2);
+    if (ImGui::Combo("DSP Emulation Engine", &dsp_idx, dsp_items, IM_ARRAYSIZE(dsp_items)))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_DSP_HLE, dsp_idx == 0);
+      Config::SetBaseOrCurrent(Config::MAIN_DSP_JIT, dsp_idx == 1);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Selects how the Digital Signal Processor (DSP) is emulated. Determines how the audio is processed and what system features are available.");
+  }
+
+  if (ImGui::CollapsingHeader("Volume"))
+  {
+    int volume = Config::Get(Config::MAIN_AUDIO_MUTED) ? 0 : Config::Get(Config::MAIN_AUDIO_VOLUME);
+    if (ImGui::SliderInt("Volume", &volume, 0, 100))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_MUTED, volume == 0);
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_VOLUME, volume);
+      Config::Save();
+      AudioCommon::UpdateSoundStream(Core::System::GetInstance());
+    }
+  }
+
+  if (ImGui::CollapsingHeader("Backend Settings"))
+  {
+    std::vector<std::string> backends = AudioCommon::GetSoundBackends();
+    std::string current_backend = Config::Get(Config::MAIN_AUDIO_BACKEND);
+    int backend_idx = 0;
+    for (size_t i = 0; i < backends.size(); ++i)
+    {
+      if (backends[i] == current_backend)
+      {
+        backend_idx = static_cast<int>(i);
+        break;
+      }
+    }
+
+    if (ImGui::Combo("Audio Backend", &backend_idx, [](void* data, int idx, const char** out_text) {
+      auto* backends = static_cast<std::vector<std::string>*>(data);
+      *out_text = backends->at(idx).c_str();
+      return true;
+    }, &backends, static_cast<int>(backends.size())))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_BACKEND, backends[backend_idx]);
+      Config::Save();
+    }
+
+#ifdef _WIN32
+    if (backends[backend_idx] == BACKEND_WASAPI)
+    {
+      std::vector<std::string> devices = WASAPIStream::GetAvailableDevices();
+      std::string current_device = Config::Get(Config::MAIN_WASAPI_DEVICE);
+      int device_idx = 0;
+      for (size_t i = 0; i < devices.size(); ++i)
+      {
+        if (devices[i] == current_device)
+        {
+          device_idx = static_cast<int>(i);
+          break;
+        }
+      }
+
+      if (ImGui::Combo("Output Device", &device_idx, [](void* data, int idx, const char** out_text) {
+        auto* devices = static_cast<std::vector<std::string>*>(data);
+        *out_text = devices->at(idx).c_str();
+        return true;
+      }, &devices, static_cast<int>(devices.size())))
+      {
+        Config::SetBaseOrCurrent(Config::MAIN_WASAPI_DEVICE, devices[device_idx]);
+        Config::Save();
+      }
+    }
+#endif
+
+    if (AudioCommon::SupportsLatencyControl(backends[backend_idx]))
+    {
+      int latency = Config::Get(Config::MAIN_AUDIO_LATENCY);
+      if (ImGui::SliderInt("Latency", &latency, 0, 200))
+      {
+        Config::SetBaseOrCurrent(Config::MAIN_AUDIO_LATENCY, latency);
+        Config::Save();
+      }
+      ImGui::TextWrapped("Sets the audio latency in milliseconds. Higher values may reduce audio crackling.");
+    }
+  }
+#ifndef WINRT_XBOX // TODO: Can't figure out how this one works will look into more if it's requested or is required
+  if (ImGui::CollapsingHeader("Dolby Pro Logic II"))
+  {
+    bool dpl2 = Config::Get(Config::MAIN_DPL2_DECODER);
+    if (ImGui::Checkbox("Enable Dolby Pro Logic II", &dpl2))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_DPL2_DECODER, dpl2);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Enables Dolby Pro Logic II emulation using 5.1 surround. Certain backends only.");
+    if (dpl2)
+    {
+      const char* quality_items[] = {"Lowest (Latency ~10 ms)", "Low (Latency ~20 ms)", "High (Latency ~40 ms)", "Highest (Latency ~80 ms)"};
+      int quality_idx = static_cast<int>(Config::Get(Config::MAIN_DPL2_QUALITY));
+      if (ImGui::Combo("Decoding Quality", &quality_idx, quality_items, IM_ARRAYSIZE(quality_items)))
+      {
+        Config::SetBaseOrCurrent(Config::MAIN_DPL2_QUALITY, static_cast<AudioCommon::DPL2Quality>(quality_idx));
+        Config::Save();
+      }
+      ImGui::TextWrapped("Adjusts the quality setting of the Dolby Pro Logic II decoder. Higher presets increases audio latency.");
+    }
+  }
+#endif
+
+  if (ImGui::CollapsingHeader("Audio Playback Settings"))
+  {
+    int buffer_size = Config::Get(Config::MAIN_AUDIO_BUFFER_SIZE);
+    if (ImGui::SliderInt("Audio Buffer Size", &buffer_size, 5, 100))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_BUFFER_SIZE, buffer_size);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Sets the size of the audio buffer in milliseconds. Higher values may reduce audio crackling.");
+
+    bool fill_gaps = Config::Get(Config::MAIN_AUDIO_FILL_GAPS);
+    if (ImGui::Checkbox("Fill Gaps", &fill_gaps))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_FILL_GAPS, fill_gaps);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Fills gaps in audio playback to prevent audio crackling.");
+
+    bool mute_on_speed_limit = Config::Get(Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT);
+    if (ImGui::Checkbox("Mute on Speed Limit", &mute_on_speed_limit))
+    {
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT, mute_on_speed_limit);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Mutes audio when emulation speed is above 100%.");
+  }
 }
 }  // namespace ImGuiFrontend

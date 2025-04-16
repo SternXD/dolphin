@@ -18,6 +18,7 @@ enum SelectedTab
   General,
   Interface,
   Graphics,
+  Audio,
   Controls,
   Paths,
   Wii,
@@ -154,6 +155,7 @@ void CreateGameCubeTab(UIState* state);
 void CreateWiiTab(UIState* state);
 void CreateAdvancedTab(UIState* state);
 void CreatePathsTab(UIState* state);
+void CreateAudioTab(UIState* state);
 void CreateWiiPort(int index, std::vector<std::string> devices);
 void CreateGCPort(int index, std::vector<std::string> devices);
 
