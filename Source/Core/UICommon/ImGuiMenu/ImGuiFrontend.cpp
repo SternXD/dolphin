@@ -587,6 +587,13 @@ void CreateGeneralTab(UIState* state)
     Config::Save();
   }
 
+  bool syncOnSkipIdle = Config::Get(Config::MAIN_SYNC_ON_SKIP_IDLE);
+  if (ImGui::Checkbox("Sync on Skip Idle", &syncOnSkipIdle))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_SYNC_ON_SKIP_IDLE, syncOnSkipIdle);
+    Config::Save();
+  }
+
   bool cheats = Config::Get(Config::MAIN_ENABLE_CHEATS);
   if (ImGui::Checkbox("Enable Cheats", &cheats))
   {
