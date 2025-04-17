@@ -681,24 +681,10 @@ void CreateGeneralTab(UIState* state)
 
 void CreateInterfaceTab(UIState* state)
 {
-  bool showFps = Config::Get(Config::GFX_SHOW_FPS);
-  if (ImGui::Checkbox("Show FPS", &showFps))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_SHOW_FPS, showFps);
-    Config::Save();
-  }
-
   bool showOSD = Config::Get(Config::MAIN_OSD_MESSAGES);
   if (ImGui::Checkbox("Show On-Screen Messages", &showOSD))
   {
     Config::SetBaseOrCurrent(Config::MAIN_OSD_MESSAGES, showOSD);
-    Config::Save();
-  }
-
-  bool showStats = Config::Get(Config::GFX_OVERLAY_STATS);
-  if (ImGui::Checkbox("Show Rendering Statistics", &showStats))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_OVERLAY_STATS, showStats);
     Config::Save();
   }
 
