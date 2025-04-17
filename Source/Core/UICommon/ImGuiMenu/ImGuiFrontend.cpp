@@ -595,13 +595,6 @@ void CreateGeneralTab(UIState* state)
     Config::Save();
   }
 
-  bool syncOnSkipIdle = Config::Get(Config::MAIN_SYNC_ON_SKIP_IDLE);
-  if (ImGui::Checkbox("Sync on Skip Idle", &syncOnSkipIdle))
-  {
-    Config::SetBaseOrCurrent(Config::MAIN_SYNC_ON_SKIP_IDLE, syncOnSkipIdle);
-    Config::Save();
-  }
-
   bool cheats = Config::Get(Config::MAIN_ENABLE_CHEATS);
   if (ImGui::Checkbox("Enable Cheats", &cheats))
   {
@@ -1897,6 +1890,14 @@ void CreateAdvancedTab(UIState* state)
   }
   ImGui::TextWrapped("Enables emulation of the CPU write-back cache.\nEnabling will have a significant impact on performance.\nThis should be left disabled unless absolutely needed.\n\nIf unsure, leave this unchecked.");
 
+  bool syncOnSkipIdle = Config::Get(Config::MAIN_SYNC_ON_SKIP_IDLE);
+  if (ImGui::Checkbox("Sync on Skip Idle", &syncOnSkipIdle))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_SYNC_ON_SKIP_IDLE, syncOnSkipIdle);
+    Config::Save();
+  }
+  ImGui::TextWrapped("Synchronizes the GPU thread with the CPU thread when the CPU is idle.\nThis helps prevent desynchronization between the CPU and GPU, which can cause visual glitches or crashes.\n\nIf unsure, leave this checked.");
+
   if (ImGui::TreeNode("Clock Override"))
   {
     ImGui::Text("WARNING: Changing this from the default (1.0 = 100%) can and will break\ngames and cause glitches. Do so at your own risk. \nPlease do not report bugs that occur with a non-default clock. \nThis is not a magical performance slider!");
@@ -2836,14 +2837,15 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.8.1 (Based on Dolphin 2503-204)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.8.1 (Based on Dolphin 2503-210)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
           "Dolphin: for their amazing work on Dolphin Emulator\n"
           "SirMangler: for their amazing work on porting Dolphin for UWP\n"
           "worleydl: For his oct2024-rebase branch (it helped so much)\n"
-          "SirManglers Ko-Fi: https://ko-fi.com/sirmangler\n\n"
+          "SirManglers Ko-Fi: https://ko-fi.com/sirmangler\n"
+          "Sterns Ko-Fi: https://ko-fi.com/stern\n\n"
           "Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.");
       break;
     }
