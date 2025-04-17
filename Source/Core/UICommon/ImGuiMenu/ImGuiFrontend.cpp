@@ -44,6 +44,8 @@
 #include "Core/ConfigManager.h"
 #include "Core/Config/WiimoteSettings.h"
 #include "Core/Config/UISettings.h"
+#include "Core/Boot/Boot.h"
+#include "Core/BootManager.h"
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -60,6 +62,7 @@
 #include "VideoCommon/Present.h"
 #include "VideoCommon/OnScreenUI.h"
 #include "VideoCommon/VideoBackendBase.h"
+#include "VideoCommon/VideoConfig.h"
 
 #include "InputCommon/InputConfig.h"
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
@@ -720,172 +723,153 @@ void CreateInterfaceTab(UIState* state)
 
 void CreateGraphicsTab(UIState* state)
 {
-  bool vSync = Config::Get(Config::GFX_VSYNC);
-  if (ImGui::Checkbox("V-Sync", &vSync))
+  if (ImGui::TreeNode("General"))
   {
-    Config::SetBaseOrCurrent(Config::GFX_VSYNC, vSync);
-    Config::Save();
-  }
-
-  bool viSkipEnable = Config::Get(Config::GFX_HACK_VI_SKIP);
-  if (ImGui::Checkbox("Enable VI Skip", &viSkipEnable))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_HACK_VI_SKIP, viSkipEnable);
-    Config::Save();
-  }
-
-  bool scaledEfb = Config::Get(Config::GFX_HACK_COPY_EFB_SCALED);
-  if (ImGui::Checkbox("Scaled EFB Copy", &scaledEfb))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_HACK_COPY_EFB_SCALED, scaledEfb);
-    Config::Save();
-  }
-
-  bool disableFog = Config::Get(Config::GFX_DISABLE_FOG);
-  if (ImGui::Checkbox("Disable Fog", &disableFog))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_DISABLE_FOG, disableFog);
-    Config::Save();
-  }
-
-  bool perPixelLighting = Config::Get(Config::GFX_ENABLE_PIXEL_LIGHTING);
-  if (ImGui::Checkbox("Per-Pixel Lighting", &perPixelLighting))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_ENABLE_PIXEL_LIGHTING, perPixelLighting);
-    Config::Save();
-  }
-
-  bool disableCopyFilter = Config::Get(Config::GFX_ENHANCE_DISABLE_COPY_FILTER);
-  if (ImGui::Checkbox("Disable Copy Filter", &disableCopyFilter))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_ENHANCE_DISABLE_COPY_FILTER, disableCopyFilter);
-    Config::Save();
-  }
-
-  const char* ir_items[] = {"Auto (Multiple of 640x528)",      "Native (640x528)",
-                            "2x Native (1280x1056) for 720p",  "3x Native (1920x1584) for 1080p",
-                            "4x Native (2560x2112) for 1440p", "5x Native (3200x2640)",
-                            "6x Native (3840x3168) for 4K",    "7x Native (4480x3696)",
-                            "8x Native (5120x4224) for 5K"};
-
-  int ir_idx = Config::Get(Config::GFX_EFB_SCALE);
-
-  if (ImGui::TreeNode("Internal Resolution"))
-  {
-    for (int i = 0; i < 9; i++)
+    // Add backend selection
+    std::vector<std::string> backend_names;
+    for (auto& backend : VideoBackendBase::GetAvailableBackends())
     {
-      ImGui::PushID(i);
-      if (ImGui::RadioButton(ir_items[i], i == ir_idx))
+      backend_names.push_back(backend->GetName());
+    }
+    
+    std::string current_backend = Config::Get(Config::MAIN_GFX_BACKEND);
+    int current_backend_idx = 0;
+    for (size_t i = 0; i < backend_names.size(); ++i)
+    {
+      if (backend_names[i] == current_backend)
       {
-        Config::SetBase(Config::GFX_EFB_SCALE, i);
-        Config::Save();
+        current_backend_idx = static_cast<int>(i);
+        break;
       }
-      ImGui::PopID();
     }
 
-    ImGui::TreePop();
-  }
-
-  const char* aspect_items[] = {"Auto", "Force 16:9", "Force 4:3", "Stretch"};
-  int aspect_idx = 0;
-  auto aspect = Config::Get(Config::GFX_ASPECT_RATIO);
-  switch (aspect)
-  {
-  case AspectMode::Auto:
-    aspect_idx = 0;
-    break;
-  case AspectMode::ForceWide:
-    aspect_idx = 1;
-    break;
-  case AspectMode::ForceStandard:
-    aspect_idx = 2;
-    break;
-  case AspectMode::Stretch:
-    aspect_idx = 3;
-    break;
-  }
-
-  if (ImGui::TreeNode("Aspect Ratio"))
-  {
-    for (int i = 0; i < 4; i++)
+    if (ImGui::Combo("Backend", &current_backend_idx, [](void* data, int idx, const char** out_text) {
+      auto* backends = static_cast<std::vector<std::string>*>(data);
+      *out_text = backends->at(idx).c_str();
+      return true;
+    }, &backend_names, static_cast<int>(backend_names.size())))
     {
-      ImGui::PushID(i);
-      if (ImGui::RadioButton(aspect_items[i], i == aspect_idx))
-      {
-        switch (i)
-        {
-        case 0:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Auto);
-            break;
-        case 1:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceWide);
-            break;
-        case 2:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceStandard);
-            break;
-        case 3:
-            Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Stretch);
-            break;
-        }
-
-        Config::Save();
-      }
-      ImGui::PopID();
+      Config::SetBaseOrCurrent(Config::MAIN_GFX_BACKEND, backend_names[current_backend_idx]);
+      Config::Save();
     }
 
-    ImGui::TreePop();
-  }
-
-  const char* shader_items[] = {"Synchronous", "Hybrid Ubershaders", "Exclusive Ubershaders",
-                                "Skip Drawing"};
-  int shader_idx = 0;
-  auto shader = Config::Get(Config::GFX_SHADER_COMPILATION_MODE);
-  switch (shader)
-  {
-  case ShaderCompilationMode::Synchronous:
-    shader_idx = 0;
-    break;
-  case ShaderCompilationMode::AsynchronousUberShaders:
-    shader_idx = 1;
-    break;
-  case ShaderCompilationMode::SynchronousUberShaders:
-    shader_idx = 2;
-    break;
-  case ShaderCompilationMode::AsynchronousSkipRendering:
-    shader_idx = 3;
-    break;
-  }
-
-  if (ImGui::TreeNode("Shader Compilation"))
-  {
-    for (int i = 0; i < 4; i++)
+    /* For now we don't need it but you never know so I'll just keep it but commented out for now.
+    if (!g_backend_info.Adapters.empty())
     {
-      ImGui::PushID(i);
-      if (ImGui::RadioButton(shader_items[i], i == shader_idx))
+      int current_adapter = Config::Get(Config::GFX_ADAPTER);
+      if (ImGui::Combo("Adapter", &current_adapter, [](void* data, int idx, const char** out_text) {
+        auto* adapters = static_cast<std::vector<std::string>*>(data);
+        *out_text = adapters->at(idx).c_str();
+        return true;
+      }, &g_backend_info.Adapters, static_cast<int>(g_backend_info.Adapters.size())))
       {
-        switch (i)
-        {
-        case 0:
-            Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
-                                     ShaderCompilationMode::Synchronous);
-            break;
-        case 1:
-            Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
-                                     ShaderCompilationMode::AsynchronousUberShaders);
-            break;
-        case 2:
-            Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
-                                     ShaderCompilationMode::SynchronousUberShaders);
-            break;
-        case 3:
-            Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
-                                     ShaderCompilationMode::AsynchronousSkipRendering);
-            break;
-        }
-
+        Config::SetBaseOrCurrent(Config::GFX_ADAPTER, current_adapter);
         Config::Save();
       }
-      ImGui::PopID();
+    }
+    */
+
+    bool vSync = Config::Get(Config::GFX_VSYNC);
+    if (ImGui::Checkbox("V-Sync", &vSync))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_VSYNC, vSync);
+      Config::Save();
+    }
+
+    const char* aspect_items[] = {"Auto", "Force 16:9", "Force 4:3", "Stretch"};
+    int aspect_idx = 0;
+    auto aspect = Config::Get(Config::GFX_ASPECT_RATIO);
+    switch (aspect)
+    {
+    case AspectMode::Auto:
+      aspect_idx = 0;
+      break;
+    case AspectMode::ForceWide:
+      aspect_idx = 1;
+      break;
+    case AspectMode::ForceStandard:
+      aspect_idx = 2;
+      break;
+    case AspectMode::Stretch:
+      aspect_idx = 3;
+      break;
+    }
+
+    if (ImGui::Combo("Aspect Ratio", &aspect_idx, aspect_items, IM_ARRAYSIZE(aspect_items)))
+    {
+      switch (aspect_idx)
+      {
+      case 0:
+        Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Auto);
+        break;
+      case 1:
+        Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceWide);
+        break;
+      case 2:
+        Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::ForceStandard);
+        break;
+      case 3:
+        Config::SetBaseOrCurrent(Config::GFX_ASPECT_RATIO, AspectMode::Stretch);
+        break;
+      }
+      Config::Save();
+    }
+
+    const char* ir_items[] = {"Auto (Multiple of 640x528)",      "Native (640x528)",
+                              "2x Native (1280x1056) for 720p",  "3x Native (1920x1584) for 1080p",
+                              "4x Native (2560x2112) for 1440p", "5x Native (3200x2640)",
+                              "6x Native (3840x3168) for 4K",    "7x Native (4480x3696)",
+                              "8x Native (5120x4224) for 5K"};
+
+    int ir_idx = Config::Get(Config::GFX_EFB_SCALE);
+    if (ImGui::Combo("Internal Resolution", &ir_idx, ir_items, IM_ARRAYSIZE(ir_items)))
+    {
+      Config::SetBase(Config::GFX_EFB_SCALE, ir_idx);
+      Config::Save();
+    }
+
+    const char* shader_items[] = {"Synchronous", "Hybrid Ubershaders", "Exclusive Ubershaders",
+                                  "Skip Drawing"};
+    int shader_idx = 0;
+    auto shader = Config::Get(Config::GFX_SHADER_COMPILATION_MODE);
+    switch (shader)
+    {
+    case ShaderCompilationMode::Synchronous:
+      shader_idx = 0;
+      break;
+    case ShaderCompilationMode::AsynchronousUberShaders:
+      shader_idx = 1;
+      break;
+    case ShaderCompilationMode::SynchronousUberShaders:
+      shader_idx = 2;
+      break;
+    case ShaderCompilationMode::AsynchronousSkipRendering:
+      shader_idx = 3;
+      break;
+    }
+
+    if (ImGui::Combo("Shader Compilation Mode", &shader_idx, shader_items, IM_ARRAYSIZE(shader_items)))
+    {
+      switch (shader_idx)
+      {
+      case 0:
+        Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
+                                 ShaderCompilationMode::Synchronous);
+        break;
+      case 1:
+        Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
+                                 ShaderCompilationMode::AsynchronousUberShaders);
+        break;
+      case 2:
+        Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
+                                 ShaderCompilationMode::SynchronousUberShaders);
+        break;
+      case 3:
+        Config::SetBaseOrCurrent(Config::GFX_SHADER_COMPILATION_MODE,
+                                 ShaderCompilationMode::AsynchronousSkipRendering);
+        break;
+      }
+      Config::Save();
     }
 
     bool waitForCompile = Config::Get(Config::GFX_WAIT_FOR_SHADERS_BEFORE_STARTING);
@@ -895,15 +879,56 @@ void CreateGraphicsTab(UIState* state)
       Config::Save();
     }
 
+    bool shaderCache = Config::Get(Config::GFX_SHADER_CACHE);
+    if (ImGui::Checkbox("Shader Cache", &shaderCache))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_SHADER_CACHE, shaderCache);
+      Config::Save();
+    }
+
     ImGui::TreePop();
   }
 
-  const char* aalevel_items[] = {"None", "2x", "4x", "8x"};
-  auto msaa = Config::Get(Config::GFX_MSAA);
-  bool ssaa = Config::Get(Config::GFX_SSAA);
-
-  if (ImGui::TreeNode("Anti-Aliasing"))
+  if (ImGui::TreeNode("Enhancements"))
   {
+    bool perPixelLighting = Config::Get(Config::GFX_ENABLE_PIXEL_LIGHTING);
+    if (ImGui::Checkbox("Per-Pixel Lighting", &perPixelLighting))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENABLE_PIXEL_LIGHTING, perPixelLighting);
+      Config::Save();
+    }
+
+    bool disableFog = Config::Get(Config::GFX_DISABLE_FOG);
+    if (ImGui::Checkbox("Disable Fog", &disableFog))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_DISABLE_FOG, disableFog);
+      Config::Save();
+    }
+
+    bool disableCopyFilter = Config::Get(Config::GFX_ENHANCE_DISABLE_COPY_FILTER);
+    if (ImGui::Checkbox("Disable Copy Filter", &disableCopyFilter))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_DISABLE_COPY_FILTER, disableCopyFilter);
+      Config::Save();
+    }
+
+    bool forceTrueColor = Config::Get(Config::GFX_ENHANCE_FORCE_TRUE_COLOR);
+    if (ImGui::Checkbox("Force True Color", &forceTrueColor))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_FORCE_TRUE_COLOR, forceTrueColor);
+      Config::Save();
+    }
+
+    const char* anisolevel_items[] = {"1x", "2x", "4x", "8x", "16x"};
+    auto aniso = Config::Get(Config::GFX_ENHANCE_MAX_ANISOTROPY);
+    int aniso_idx = static_cast<int>(aniso);
+    if (ImGui::Combo("Anisotropic Filtering", &aniso_idx, anisolevel_items, IM_ARRAYSIZE(anisolevel_items)))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, static_cast<AnisotropicFilteringMode>(aniso_idx));
+      Config::Save();
+    }
+
+    bool ssaa = Config::Get(Config::GFX_SSAA);
     if (ImGui::RadioButton("MSAA", !ssaa))
     {
       Config::SetBaseOrCurrent(Config::GFX_SSAA, false);
@@ -916,35 +941,356 @@ void CreateGraphicsTab(UIState* state)
       Config::Save();
     }
 
-    ImGui::Separator();
-    for (u32 i = 0; i < 4; i++)
+    const char* aalevel_items[] = {"None", "2x", "4x", "8x"};
+    auto msaa = Config::Get(Config::GFX_MSAA);
+    int msaa_idx = msaa;
+    if (ImGui::Combo("MSAA Level", &msaa_idx, aalevel_items, IM_ARRAYSIZE(aalevel_items)))
     {
-      ImGui::PushID(i);
-      if (ImGui::RadioButton(aalevel_items[i], i == msaa))
-      {
-        Config::SetBaseOrCurrent(Config::GFX_MSAA, i);
-        Config::Save();
-      }
-      ImGui::PopID();
+      Config::SetBaseOrCurrent(Config::GFX_MSAA, msaa_idx);
+      Config::Save();
     }
 
     ImGui::TreePop();
   }
 
-  const char* anisolevel_items[] = {"1x", "2x", "4x", "8x", "16x"};
-  auto aniso = Config::Get(Config::GFX_ENHANCE_MAX_ANISOTROPY);
-
-  if (ImGui::TreeNode("Anisotropic Filtering"))
+  if (ImGui::TreeNode("Hacks"))
   {
-    for (int i = 0; i < 5; i++)
+    if (ImGui::TreeNode("Embedded Frame Buffer (EFB)"))
     {
-      ImGui::PushID(i);
-      if (ImGui::RadioButton(anisolevel_items[i], static_cast<int>(aniso) == i))
+      bool skipEfbCpu = Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE);
+      if (ImGui::Checkbox("Skip EFB Access from CPU", &skipEfbCpu))
       {
-        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, static_cast<AnisotropicFilteringMode>(i));
+        Config::SetBaseOrCurrent(Config::GFX_HACK_EFB_ACCESS_ENABLE, skipEfbCpu);
         Config::Save();
       }
-      ImGui::PopID();
+
+      bool ignoreFormatChanges = Config::Get(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES);
+      if (ImGui::Checkbox("Ignore Format Changes", &ignoreFormatChanges))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES, ignoreFormatChanges);
+        Config::Save();
+      }
+
+      bool storeEfbCopies = Config::Get(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
+      if (ImGui::Checkbox("Store EFB Copies to Texture Only", &storeEfbCopies))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM, storeEfbCopies);
+        Config::Save();
+      }
+
+      bool deferEfbCopies = Config::Get(Config::GFX_HACK_DEFER_EFB_COPIES);
+      if (ImGui::Checkbox("Defer EFB Copies to RAM", &deferEfbCopies))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_DEFER_EFB_COPIES, deferEfbCopies);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Texture Cache"))
+    {
+      int accuracy = Config::Get(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES);
+      if (ImGui::SliderInt("Texture Cache Accuracy", &accuracy, 0, 512))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, accuracy);
+        Config::Save();
+      }
+      ImGui::Text("Safe");
+      ImGui::SameLine();
+      ImGui::Text("Fast");
+
+      bool gpuTextureDecoding = Config::Get(Config::GFX_ENABLE_GPU_TEXTURE_DECODING);
+      if (ImGui::Checkbox("GPU Texture Decoding", &gpuTextureDecoding))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_ENABLE_GPU_TEXTURE_DECODING, gpuTextureDecoding);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("External Frame Buffer (XFB)"))
+    {
+      bool storeXfbCopies = Config::Get(Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM);
+      if (ImGui::Checkbox("Store XFB Copies to Texture Only", &storeXfbCopies))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM, storeXfbCopies);
+        Config::Save();
+      }
+
+      bool immediateXfb = Config::Get(Config::GFX_HACK_IMMEDIATE_XFB);
+      if (ImGui::Checkbox("Immediately Present XFB", &immediateXfb))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_IMMEDIATE_XFB, immediateXfb);
+        Config::Save();
+      }
+
+      bool skipDuplicateXfbs = Config::Get(Config::GFX_HACK_SKIP_DUPLICATE_XFBS);
+      if (ImGui::Checkbox("Skip Presenting Duplicate Frames", &skipDuplicateXfbs))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_SKIP_DUPLICATE_XFBS, skipDuplicateXfbs);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Other"))
+    {
+      bool fastDepthCalculation = Config::Get(Config::GFX_FAST_DEPTH_CALC);
+      if (ImGui::Checkbox("Fast Depth Calculation", &fastDepthCalculation))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_FAST_DEPTH_CALC, fastDepthCalculation);
+        Config::Save();
+      }
+
+      bool disableBoundingBox = Config::Get(Config::GFX_HACK_BBOX_ENABLE);
+      if (ImGui::Checkbox("Disable Bounding Box", &disableBoundingBox))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_BBOX_ENABLE, disableBoundingBox);
+        Config::Save();
+      }
+
+      bool vertexRounding = Config::Get(Config::GFX_HACK_VERTEX_ROUNDING);
+      if (ImGui::Checkbox("Vertex Rounding", &vertexRounding))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_VERTEX_ROUNDING, vertexRounding);
+        Config::Save();
+      }
+
+      bool saveTextureCacheState = Config::Get(Config::GFX_SAVE_TEXTURE_CACHE_TO_STATE);
+      if (ImGui::Checkbox("Save Texture Cache to State", &saveTextureCacheState))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SAVE_TEXTURE_CACHE_TO_STATE, saveTextureCacheState);
+        Config::Save();
+      }
+
+      bool viSkip = Config::Get(Config::GFX_HACK_VI_SKIP);
+      if (ImGui::Checkbox("VBI Skip", &viSkip))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_VI_SKIP, viSkip);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    ImGui::TreePop();
+  }
+
+  if (ImGui::TreeNode("Advanced"))
+  {
+    if (ImGui::TreeNode("Performance Statistics"))
+    {
+      bool showFps = Config::Get(Config::GFX_SHOW_FPS);
+      if (ImGui::Checkbox("Show FPS", &showFps))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SHOW_FPS, showFps);
+        Config::Save();
+      }
+
+      bool showVps = Config::Get(Config::GFX_SHOW_VPS);
+      if (ImGui::Checkbox("Show VPS", &showVps))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SHOW_VPS, showVps);
+        Config::Save();
+      }
+
+      bool showSpeed = Config::Get(Config::GFX_SHOW_SPEED);
+      if (ImGui::Checkbox("Show Speed", &showSpeed))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SHOW_SPEED, showSpeed);
+        Config::Save();
+      }
+
+      bool showSpeedColors = Config::Get(Config::GFX_SHOW_SPEED_COLORS);
+      if (ImGui::Checkbox("Show Speed Colors", &showSpeedColors))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_SHOW_SPEED_COLORS, showSpeedColors);
+        Config::Save();
+      }
+
+      bool overlayStats = Config::Get(Config::GFX_OVERLAY_STATS);
+      if (ImGui::Checkbox("Show Rendering Statistics", &overlayStats))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_OVERLAY_STATS, overlayStats);
+        Config::Save();
+      }
+
+      bool logRenderTime = Config::Get(Config::GFX_LOG_RENDER_TIME_TO_FILE);
+      if (ImGui::Checkbox("Log Render Time to File", &logRenderTime))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_LOG_RENDER_TIME_TO_FILE, logRenderTime);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Debugging"))
+    {
+      bool enableWireframe = Config::Get(Config::GFX_ENABLE_WIREFRAME);
+      if (ImGui::Checkbox("Enable Wireframe", &enableWireframe))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_ENABLE_WIREFRAME, enableWireframe);
+        Config::Save();
+      }
+
+      bool showProjStats = Config::Get(Config::GFX_OVERLAY_PROJ_STATS);
+      if (ImGui::Checkbox("Show Projection Statistics", &showProjStats))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_OVERLAY_PROJ_STATS, showProjStats);
+        Config::Save();
+      }
+
+      bool enableFormatOverlay = Config::Get(Config::GFX_TEXFMT_OVERLAY_ENABLE);
+      if (ImGui::Checkbox("Texture Format Overlay", &enableFormatOverlay))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_TEXFMT_OVERLAY_ENABLE, enableFormatOverlay);
+        Config::Save();
+      }
+
+      bool enableApiValidation = Config::Get(Config::GFX_ENABLE_VALIDATION_LAYER);
+      if (ImGui::Checkbox("Enable API Validation Layers", &enableApiValidation))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_ENABLE_VALIDATION_LAYER, enableApiValidation);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Utility"))
+    {
+      bool loadCustomTextures = Config::Get(Config::GFX_HIRES_TEXTURES);
+      if (ImGui::Checkbox("Load Custom Textures", &loadCustomTextures))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HIRES_TEXTURES, loadCustomTextures);
+        Config::Save();
+      }
+
+      bool prefetchCustomTextures = Config::Get(Config::GFX_CACHE_HIRES_TEXTURES);
+      if (ImGui::Checkbox("Prefetch Custom Textures", &prefetchCustomTextures))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_CACHE_HIRES_TEXTURES, prefetchCustomTextures);
+        Config::Save();
+      }
+
+      bool disableVramCopies = Config::Get(Config::GFX_HACK_DISABLE_COPY_TO_VRAM);
+      if (ImGui::Checkbox("Disable EFB VRAM Copies", &disableVramCopies))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_DISABLE_COPY_TO_VRAM, disableVramCopies);
+        Config::Save();
+      }
+
+      bool enableGraphicsMods = Config::Get(Config::GFX_MODS_ENABLE);
+      if (ImGui::Checkbox("Enable Graphics Mods", &enableGraphicsMods))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_MODS_ENABLE, enableGraphicsMods);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Texture Dumping"))
+    {
+      bool dumpTextures = Config::Get(Config::GFX_DUMP_TEXTURES);
+      if (ImGui::Checkbox("Enable", &dumpTextures))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_DUMP_TEXTURES, dumpTextures);
+        Config::Save();
+      }
+
+      bool dumpBaseTextures = Config::Get(Config::GFX_DUMP_BASE_TEXTURES);
+      if (ImGui::Checkbox("Dump Base Textures", &dumpBaseTextures))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_DUMP_BASE_TEXTURES, dumpBaseTextures);
+        Config::Save();
+      }
+
+      bool dumpMipTextures = Config::Get(Config::GFX_DUMP_MIP_TEXTURES);
+      if (ImGui::Checkbox("Dump Mip Maps", &dumpMipTextures))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_DUMP_MIP_TEXTURES, dumpMipTextures);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Frame Dumping"))
+    {
+      const char* resolution_items[] = {"Window Resolution", "Aspect Ratio Corrected Internal Resolution", "Raw Internal Resolution"};
+      auto resolution_type = Config::Get(Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE);
+      int resolution_idx = static_cast<int>(resolution_type);
+      if (ImGui::Combo("Resolution Type", &resolution_idx, resolution_items, IM_ARRAYSIZE(resolution_items)))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE, static_cast<FrameDumpResolutionType>(resolution_idx));
+        Config::Save();
+      }
+
+      int pngCompression = Config::Get(Config::GFX_PNG_COMPRESSION_LEVEL);
+      if (ImGui::SliderInt("PNG Compression Level", &pngCompression, 0, 9))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_PNG_COMPRESSION_LEVEL, pngCompression);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Misc"))
+    {
+      bool enableProgScan = Config::Get(Config::SYSCONF_PROGRESSIVE_SCAN);
+      if (ImGui::Checkbox("Enable Progressive Scan", &enableProgScan))
+      {
+        Config::SetBaseOrCurrent(Config::SYSCONF_PROGRESSIVE_SCAN, enableProgScan);
+        Config::Save();
+      }
+
+      bool backendMultithreading = Config::Get(Config::GFX_BACKEND_MULTITHREADING);
+      if (ImGui::Checkbox("Backend Multithreading", &backendMultithreading))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_BACKEND_MULTITHREADING, backendMultithreading);
+        Config::Save();
+      }
+
+      bool preferVsForLinePoint = Config::Get(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION);
+      if (ImGui::Checkbox("Prefer VS for Point/Line Expansion", &preferVsForLinePoint))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION, preferVsForLinePoint);
+        Config::Save();
+      }
+
+      bool cpuCull = Config::Get(Config::GFX_CPU_CULL);
+      if (ImGui::Checkbox("Cull Vertices on the CPU", &cpuCull))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_CPU_CULL, cpuCull);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Experimental"))
+    {
+      bool deferEfbAccess = Config::Get(Config::GFX_HACK_EFB_DEFER_INVALIDATION);
+      if (ImGui::Checkbox("Defer EFB Cache Invalidation", &deferEfbAccess))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_EFB_DEFER_INVALIDATION, deferEfbAccess);
+        Config::Save();
+      }
+
+      bool manualTextureSampling = Config::Get(Config::GFX_HACK_FAST_TEXTURE_SAMPLING);
+      if (ImGui::Checkbox("Manual Texture Sampling", &manualTextureSampling))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_HACK_FAST_TEXTURE_SAMPLING, manualTextureSampling);
+        Config::Save();
+      }
+
+      ImGui::TreePop();
     }
 
     ImGui::TreePop();
@@ -1021,6 +1367,200 @@ void CreateGameCubeTab(UIState* state)
 
     ImGui::TreePop();
   }
+  /* I need to figure out why this won't boot and just get's stuck at Loading..
+  if (ImGui::TreeNode("Load GameCube Main Menu"))
+  {
+    bool has_ntscj = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/JAP/" + GC_IPL) ||
+                    File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/JAP/" + GC_IPL);
+    bool has_ntscu = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/USA/" + GC_IPL) ||
+                    File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/USA/" + GC_IPL);
+    bool has_pal = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/EUR/" + GC_IPL) ||
+                  File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/EUR/" + GC_IPL);
+
+    if (!has_ntscj)
+      ImGui::BeginDisabled();
+    if (ImGui::Button("NTSC-J"))
+    {
+      state->showSettingsWindow = false;
+      
+      OutputDebugStringA("[GameCube IPL] Starting boot process for NTSC-J\n");
+      
+      WindowSystemInfo wsi;
+      CoreWindow window = CoreWindow::GetForCurrentThread();
+      void* abi = winrt::get_abi(window);
+      wsi.type = WindowSystemType::Windows;
+      wsi.display_connection = nullptr;
+      wsi.render_window = abi;
+      wsi.render_surface = abi;
+      wsi.render_surface_scale = 1.0f;
+      wsi.render_width = static_cast<u32>(window.Bounds().Width);
+      wsi.render_height = static_cast<u32>(window.Bounds().Height);
+      
+      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
+                                            wsi.render_width, wsi.render_height);
+      OutputDebugStringA(wsi_info.c_str());
+
+      try {
+        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for NTSC-J\n");
+        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::NTSC_J));
+        
+        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
+        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/JAP/" + GC_IPL;
+        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/JAP/" + GC_IPL;
+        
+        if (!File::Exists(user_path) && !File::Exists(sys_path))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for NTSC-J\n");
+          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
+                        user_path, sys_path);
+          return;
+        }
+        
+        OutputDebugStringA("[GameCube IPL] Attempting BootCore for NTSC-J\n");
+        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for NTSC-J\n");
+          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
+        }
+        else
+        {
+          OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-J\n");
+        }
+      }
+      catch (const std::exception& e) {
+        std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-J boot: %s\n", e.what());
+        OutputDebugStringA(error.c_str());
+        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
+      }
+    }
+    if (!has_ntscj)
+      ImGui::EndDisabled();
+
+    if (!has_ntscu)
+      ImGui::BeginDisabled();
+    if (ImGui::Button("NTSC-U"))
+    {
+      state->showSettingsWindow = false;
+
+      OutputDebugStringA("[GameCube IPL] Starting boot process for NTSC-U\n");
+      
+      WindowSystemInfo wsi;
+      CoreWindow window = CoreWindow::GetForCurrentThread();
+      void* abi = winrt::get_abi(window);
+      wsi.type = WindowSystemType::Windows;
+      wsi.display_connection = nullptr;
+      wsi.render_window = abi;
+      wsi.render_surface = abi;
+      wsi.render_surface_scale = 1.0f;
+      wsi.render_width = static_cast<u32>(window.Bounds().Width);
+      wsi.render_height = static_cast<u32>(window.Bounds().Height);
+      
+      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
+                                            wsi.render_width, wsi.render_height);
+      OutputDebugStringA(wsi_info.c_str());
+
+      try {
+        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for NTSC-U\n");
+        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::NTSC_U));
+        
+        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
+        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/USA/" + GC_IPL;
+        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/USA/" + GC_IPL;
+        
+        if (!File::Exists(user_path) && !File::Exists(sys_path))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for NTSC-U\n");
+          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
+                        user_path, sys_path);
+          return;
+        }
+        
+        OutputDebugStringA("[GameCube IPL] Attempting BootCore for NTSC-U\n");
+        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for NTSC-U\n");
+          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
+        }
+        else
+        {
+          OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-U\n");
+        }
+      }
+      catch (const std::exception& e) {
+        std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-U boot: %s\n", e.what());
+        OutputDebugStringA(error.c_str());
+        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
+      }
+    }
+    if (!has_ntscu)
+      ImGui::EndDisabled();
+
+    if (!has_pal)
+      ImGui::BeginDisabled();
+    if (ImGui::Button("PAL"))
+    {
+      state->showSettingsWindow = false;
+
+      OutputDebugStringA("[GameCube IPL] Starting boot process for PAL\n");
+      
+      WindowSystemInfo wsi;
+      CoreWindow window = CoreWindow::GetForCurrentThread();
+      void* abi = winrt::get_abi(window);
+      wsi.type = WindowSystemType::Windows;
+      wsi.display_connection = nullptr;
+      wsi.render_window = abi;
+      wsi.render_surface = abi;
+      wsi.render_surface_scale = 1.0f;
+      wsi.render_width = static_cast<u32>(window.Bounds().Width);
+      wsi.render_height = static_cast<u32>(window.Bounds().Height);
+      
+      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
+                                            wsi.render_width, wsi.render_height);
+      OutputDebugStringA(wsi_info.c_str());
+
+      try {
+        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for PAL\n");
+        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::PAL));
+        
+        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
+        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/EUR/" + GC_IPL;
+        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/EUR/" + GC_IPL;
+        
+        if (!File::Exists(user_path) && !File::Exists(sys_path))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for PAL\n");
+          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
+                        user_path, sys_path);
+          return;
+        }
+        
+        OutputDebugStringA("[GameCube IPL] Attempting BootCore for PAL\n");
+        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
+        {
+          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for PAL\n");
+          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
+        }
+        else
+        {
+          OutputDebugStringA("[GameCube IPL] BootCore succeeded for PAL\n");
+        }
+      }
+      catch (const std::exception& e) {
+        std::string error = StringFromFormat("[GameCube IPL] Exception during PAL boot: %s\n", e.what());
+        OutputDebugStringA(error.c_str());
+        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
+      }
+    }
+    if (!has_pal)
+      ImGui::EndDisabled();
+
+    if (!has_ntscj && !has_ntscu && !has_pal)
+    {
+      ImGui::TextWrapped("Put IPL ROMs in User/GC/<region>/IPL.bin");
+    }
+
+    ImGui::TreePop();
+  } */
 
   auto slot1 = Config::Get(Config::MAIN_SLOT_A);
   if (ImGui::TreeNode("Slot A"))
@@ -1370,59 +1910,6 @@ void CreateAdvancedTab(UIState* state)
     Config::Save();
   }
   ImGui::TextWrapped("Enables emulation of the CPU write-back cache.\nEnabling will have a significant impact on performance.\nThis should be left disabled unless absolutely needed.\n\nIf unsure, leave this unchecked.");
-
-  bool hiresTexEnable = Config::Get(Config::GFX_HIRES_TEXTURES);
-  if (ImGui::Checkbox("Load Custom Textures", &hiresTexEnable))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_HIRES_TEXTURES, hiresTexEnable);
-    Config::Save();
-  }
-
-  bool prefetchTexEnable = Config::Get(Config::GFX_CACHE_HIRES_TEXTURES);
-  if (ImGui::Checkbox("Prefetch Custom Textures", &prefetchTexEnable))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_CACHE_HIRES_TEXTURES, prefetchTexEnable);
-    Config::Save();
-  }
-
-  bool graphicsModsEnable = Config::Get(Config::GFX_MODS_ENABLE);
-  if (ImGui::Checkbox("Enable Graphics Mods", &graphicsModsEnable))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_MODS_ENABLE,
-                                   graphicsModsEnable);
-    Config::Save();
-  }
-
-  bool textureDumping = Config::Get(Config::GFX_DUMP_TEXTURES);
-  if (ImGui::Checkbox("Enable Texture Dumping", &textureDumping))
-  {
-    Config::SetBaseOrCurrent(Config::GFX_DUMP_TEXTURES, textureDumping);
-    Config::Save();
-  }
-
-  auto textureCache = Config::Get(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES);
-  if (ImGui::TreeNode("Texture Cache Accuracy"))
-  {
-    if (ImGui::RadioButton("Safe", textureCache == 0))
-    {
-      Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, 0);
-      Config::Save();
-    }
-
-    if (ImGui::RadioButton("Balanced", textureCache == 512))
-    {
-      Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, 512);
-      Config::Save();
-    }
-
-    if (ImGui::RadioButton("Fast", textureCache == 128))
-    {
-      Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, 128);
-      Config::Save();
-    }
-
-    ImGui::TreePop();
-  }
 
   if (ImGui::TreeNode("Clock Override"))
   {
