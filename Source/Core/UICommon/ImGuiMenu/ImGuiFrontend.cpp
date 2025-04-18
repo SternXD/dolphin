@@ -37,6 +37,7 @@
 #include "Core/TitleDatabase.h"
 #include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/GCPad.h"
+#include "Core/HW/GCPadEmu.h"
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/NetPlayClient.h"
 #include "Core/NetPlayProto.h"
@@ -46,6 +47,8 @@
 #include "Core/Config/UISettings.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
+#include "Core/System.h"
+#include <Core/CommonTitles.h>
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -66,6 +69,9 @@
 
 #include "InputCommon/InputConfig.h"
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
+#include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
+#include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
+#include <InputCommon/ControllerInterface/MappingCommon.h>
 
 #include "AudioCommon/AudioCommon.h"
 #include "AudioCommon/Enums.h"
@@ -937,14 +943,14 @@ void CreateGraphicsTab(UIState* state)
     if (ImGui::TreeNode("Embedded Frame Buffer (EFB)"))
     {
       bool skipEfbCpu = Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE);
-      if (ImGui::Checkbox("Skip EFB Access from CPU", &skipEfbCpu))
+      if (ImGui::Checkbox("Enable EFB Access from CPU", &skipEfbCpu))
       {
         Config::SetBaseOrCurrent(Config::GFX_HACK_EFB_ACCESS_ENABLE, skipEfbCpu);
         Config::Save();
       }
 
       bool ignoreFormatChanges = Config::Get(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES);
-      if (ImGui::Checkbox("Ignore Format Changes", &ignoreFormatChanges))
+      if (ImGui::Checkbox("Emulate Format Changes", &ignoreFormatChanges))
       {
         Config::SetBaseOrCurrent(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES, ignoreFormatChanges);
         Config::Save();
@@ -1025,7 +1031,7 @@ void CreateGraphicsTab(UIState* state)
       }
 
       bool disableBoundingBox = Config::Get(Config::GFX_HACK_BBOX_ENABLE);
-      if (ImGui::Checkbox("Disable Bounding Box", &disableBoundingBox))
+      if (ImGui::Checkbox("Enable Bounding Box", &disableBoundingBox))
       {
         Config::SetBaseOrCurrent(Config::GFX_HACK_BBOX_ENABLE, disableBoundingBox);
         Config::Save();
@@ -1263,7 +1269,7 @@ void CreateGraphicsTab(UIState* state)
       }
 
       bool manualTextureSampling = Config::Get(Config::GFX_HACK_FAST_TEXTURE_SAMPLING);
-      if (ImGui::Checkbox("Manual Texture Sampling", &manualTextureSampling))
+      if (ImGui::Checkbox("Fast Texture Sampling", &manualTextureSampling))
       {
         Config::SetBaseOrCurrent(Config::GFX_HACK_FAST_TEXTURE_SAMPLING, manualTextureSampling);
         Config::Save();
@@ -1346,7 +1352,7 @@ void CreateGameCubeTab(UIState* state)
 
     ImGui::TreePop();
   }
-  /* I need to figure out why this won't boot and just get's stuck at Loading..
+  // I need to figure out why this won't boot and just get's stuck at Loading..
   if (ImGui::TreeNode("Load GameCube Main Menu"))
   {
     bool has_ntscj = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/JAP/" + GC_IPL) ||
@@ -1539,7 +1545,7 @@ void CreateGameCubeTab(UIState* state)
     }
 
     ImGui::TreePop();
-  } */
+  }
 
   auto slot1 = Config::Get(Config::MAIN_SLOT_A);
   if (ImGui::TreeNode("Slot A"))
@@ -1677,6 +1683,19 @@ void CreateGameCubeTab(UIState* state)
 
 void CreateWiiTab(UIState* state)
 {
+  if (ImGui::Button("Boot Wii System Menu"))
+  {
+    Core::Stop(Core::System::GetInstance());
+    Core::Shutdown(Core::System::GetInstance());
+
+    state->controlsDisabled = true;
+    BootManager::BootCore(Core::System::GetInstance(), 
+                         std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU}),
+                         WindowSystemInfo());
+    state->controlsDisabled = false;
+  }
+  ImGui::TextWrapped("Boots the Wii System Menu from the NAND.");
+
   bool pal60 = Config::Get(Config::SYSCONF_PAL60);
   if (ImGui::Checkbox("Enable PAL60", &pal60))
   {
