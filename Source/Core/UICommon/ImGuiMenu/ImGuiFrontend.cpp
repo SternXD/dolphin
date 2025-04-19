@@ -13,8 +13,9 @@
 #include "ImageLoader.h"
 
 #include <imgui.h>
+#include <Windows.h>
 
-// Include stb_image before defining implementation
+
 #include "../../../../Externals/tinygltf/tinygltf/stb_image.h"
 
 #ifdef WINRT_XBOX
@@ -49,6 +50,9 @@
 #include "Core/BootManager.h"
 #include "Core/System.h"
 #include <Core/CommonTitles.h>
+#include <Core/Config/AchievementSettings.h>
+#include <Core/AchievementManager.h>
+#include <rcheevos/include/rc_client.h>
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -453,26 +457,18 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       }
     }
 
-
-ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO& io = ImGui::GetIO();
 
     {
       std::unique_lock lk(UWP::g_buffer_mutex);
 
       for (uint32_t c : UWP::g_char_buffer)
-
       {
         io.AddInputCharacter(c);
 
         if (c == '\b')
-
         {
-          // First send key press event
-
           io.AddKeyEvent(ImGuiKey_Backspace, true);
-
-          // Then immediately send key release event since this is a one-time character input
-
           io.AddKeyEvent(ImGuiKey_Backspace, false);
         }
       }
@@ -572,6 +568,9 @@ ImGuiIO& io = ImGui::GetIO();
         break;
       }
     }
+
+    // Draw achievements window if enabled and game is loaded
+    DrawAchievementsWindow(&m_state);
 
     g_presenter->Present();
   }
@@ -1410,7 +1409,7 @@ void CreateGameCubeTab(UIState* state)
         else
         {
           OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-J\n");
-        }
+      }
       }
       catch (const std::exception& e) {
         std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-J boot: %s\n", e.what());
@@ -1469,7 +1468,7 @@ void CreateGameCubeTab(UIState* state)
         else
         {
           OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-U\n");
-        }
+      }
       }
       catch (const std::exception& e) {
         std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-U boot: %s\n", e.what());
@@ -1528,7 +1527,7 @@ void CreateGameCubeTab(UIState* state)
         else
         {
           OutputDebugStringA("[GameCube IPL] BootCore succeeded for PAL\n");
-        }
+      }
       }
       catch (const std::exception& e) {
         std::string error = StringFromFormat("[GameCube IPL] Exception during PAL boot: %s\n", e.what());
@@ -2818,6 +2817,10 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     {
       state->selectedTab = About;
     }
+    if (ImGui::Selectable("Achievements", state->selectedTab == Achievements))
+    {
+      state->selectedTab = Achievements;
+    }
 
     ImGui::EndListBox();
   }
@@ -2866,6 +2869,9 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
           "SirManglers Ko-Fi: https://ko-fi.com/sirmangler\n"
           "Sterns Ko-Fi: https://ko-fi.com/stern\n\n"
           "Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.");
+      break;
+    case Achievements:
+      CreateAchievementsTab(state);
       break;
     }
 
@@ -3138,4 +3144,422 @@ void CreateAudioTab(UIState* state)
     ImGui::TextWrapped("Mutes audio when emulation speed is above 100%.");
   }
 }
+void CreateAchievementsTab(UIState* state)
+{
+#ifdef USE_RETRO_ACHIEVEMENTS
+  // Existing variable declarations
+  static bool integration_enabled = Config::Get(Config::RA_ENABLED);
+  static bool hardcore_enabled = Config::Get(Config::RA_HARDCORE_ENABLED);
+  static bool unofficial_enabled = Config::Get(Config::RA_UNOFFICIAL_ENABLED);
+  static bool encore_enabled = Config::Get(Config::RA_ENCORE_ENABLED);
+  static bool spectator_enabled = Config::Get(Config::RA_SPECTATOR_ENABLED);
+  static bool discord_presence_enabled = Config::Get(Config::RA_DISCORD_PRESENCE_ENABLED);
+  static bool progress_enabled = Config::Get(Config::RA_PROGRESS_ENABLED);
+  static char username[256] = "";
+  static char password[256] = "";
+  static bool show_password = false;
+  static std::string login_error;
+  static bool show_error_popup = false;
+  static std::string popup_error_message;
+
+  const bool is_running = Core::GetState(Core::System::GetInstance()) != Core::State::Uninitialized;
+  const bool logged_in = !Config::Get(Config::RA_API_TOKEN).empty();
+
+  if (show_error_popup)
+  {
+    ImGui::OpenPopup("Login Error");
+    if (ImGui::BeginPopupModal("Login Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+    {
+      ImGui::TextWrapped("%s", popup_error_message.c_str());
+      ImGui::Separator();
+
+      if (ImGui::Button("OK", ImVec2(120, 0)))
+      {
+        show_error_popup = false;
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndPopup();
+    }
+  }
+
+  if (ImGui::Checkbox("Enable RetroAchievements.org Integration", &integration_enabled))
+  {
+    Config::SetBaseOrCurrent(Config::RA_ENABLED, integration_enabled);
+    Config::Save();
+  }
+  if (ImGui::IsItemHovered())
+  {
+    ImGui::SetTooltip(
+        "Enable integration with RetroAchievements for earning achievements and competing in "
+        "leaderboards.\n\n"
+        "Must log in with a RetroAchievements account to use. Dolphin does not save your "
+        "password locally and uses an API token to maintain login.");
+  }
+
+  if (integration_enabled)
+  {
+    if (!logged_in)
+    {
+      ImGui::Text("Username");
+      ImGui::SameLine();
+      if (ImGui::Button("Edit Username"))
+      {
+        UWP::ShowKeyboard();
+        ImGui::SetKeyboardFocusHere();
+      }
+      ImGui::SameLine();
+      if (ImGui::InputText("##username", username, sizeof(username),
+                           ImGuiInputTextFlags_EnterReturnsTrue))
+      {
+        UWP::HideKeyboard();
+        ImGui::SetKeyboardFocusHere(-1);
+      }
+
+      ImGui::Spacing();
+
+      ImGui::Text("Password");
+      ImGui::SameLine();
+      if (ImGui::Button("Edit Password"))
+      {
+        UWP::ShowKeyboard();
+        ImGui::SetKeyboardFocusHere();
+      }
+      ImGui::SameLine();
+      ImGuiInputTextFlags pwd_flags =
+          ImGuiInputTextFlags_EnterReturnsTrue | (show_password ? 0 : ImGuiInputTextFlags_Password);
+      if (ImGui::InputText("##password", password, sizeof(password), pwd_flags))
+      {
+        UWP::HideKeyboard();
+        show_password = !show_password;
+        ImGui::SetKeyboardFocusHere(-1);
+      }
+
+      ImGui::BeginDisabled(is_running);
+      if (ImGui::Button("Log In"))
+      {
+        // Log to Visual Studio that a login attempt was made
+#ifdef _WIN32
+        OutputDebugStringA(
+            ("RetroAchievements: Login attempt for user: " + std::string(username) + "\n").c_str());
+#endif
+
+        if (std::string(username).empty())
+        {
+          login_error = "Username cannot be empty";
+#ifdef _WIN32
+          OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
+#endif
+          popup_error_message = login_error;
+          show_error_popup = true;
+        }
+        else if (std::string(password).empty())
+        {
+          login_error = "Password cannot be empty";
+#ifdef _WIN32
+          OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
+#endif
+          popup_error_message = login_error;
+          show_error_popup = true;
+        }
+        else
+        {
+          Config::SetBaseOrCurrent(Config::RA_USERNAME, username);
+
+          try
+          {
+            std::string before_token = Config::Get(Config::RA_API_TOKEN);
+
+            AchievementManager::GetInstance().Login(std::string(username));
+
+            std::string after_token = Config::Get(Config::RA_API_TOKEN);
+
+            if (after_token == before_token && after_token.empty())
+            {
+              login_error = "Authentication failed. Please check your credentials.";
+#ifdef _WIN32
+              OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
+#endif
+              popup_error_message = login_error;
+              show_error_popup = true;
+            }
+            else
+            {
+              login_error.clear();
+#ifdef _WIN32
+              OutputDebugStringA("RetroAchievements: Login successful\n");
+#endif
+            }
+          }
+          catch (const std::exception& e)
+          {
+            login_error = std::string("Exception during login: ") + e.what();
+#ifdef _WIN32
+            OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
+#endif
+            popup_error_message = login_error;
+            show_error_popup = true;
+          }
+        }
+
+        // Clear password from memory for security
+        memset(password, 0, sizeof(password));
+      }
+      ImGui::EndDisabled();
+
+      if (!login_error.empty())
+      {
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
+        ImGui::Text("%s", login_error.c_str());
+        ImGui::PopStyleColor();
+      }
+    }
+    else
+    {
+      if (ImGui::Button("Log Out"))
+      {
+#ifdef _WIN32
+        OutputDebugStringA("RetroAchievements: User logged out\n");
+#endif
+        AchievementManager::GetInstance().Logout();
+        Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
+        Config::Save();
+      }
+    }
+    ImGui::Separator();
+    ImGui::Text("Function Settings");
+
+    ImGui::BeginDisabled(!logged_in || (is_running && !hardcore_enabled));
+    if (ImGui::Checkbox("Enable Hardcore Mode", &hardcore_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_HARDCORE_ENABLED, hardcore_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Enable Hardcore Mode on RetroAchievements.\n\n"
+        "Hardcore Mode is intended to provide an experience as close to gaming on the original "
+        "hardware as possible. RetroAchievements rankings are primarily oriented towards Hardcore "
+        "points (Softcore points are tracked but not as heavily emphasized) and leaderboards "
+        "require Hardcore Mode to be on.\n\n"
+        "To ensure this experience, the following features will be disabled:\n"
+        "- Loading states (saving states is allowed)\n"
+        "- Emulator speeds below 100% (frame advance disabled, turbo allowed)\n"
+        "- Cheats\n"
+        "- Memory patches (file patches allowed)\n"
+        "- Debug UI\n"
+        "- Freelook\n\n"
+        "This cannot be turned on while a game is playing.\n"
+        "Close your current game before enabling.");
+    }
+    ImGui::EndDisabled();
+
+    ImGui::BeginDisabled(!logged_in);
+    if (ImGui::Checkbox("Enable Unofficial Achievements", &unofficial_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_UNOFFICIAL_ENABLED, unofficial_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Enable unlocking unofficial achievements as well as official achievements.\n\n"
+        "Unofficial achievements may be optional or unfinished achievements that have not been "
+        "deemed official by RetroAchievements and may be useful for testing or simply for fun.\n\n"
+        "Setting takes effect on next game load.");
+    }
+
+    if (ImGui::Checkbox("Enable Encore Mode", &encore_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_ENCORE_ENABLED, encore_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Enable unlocking achievements in Encore Mode.\n\n"
+        "Encore Mode re-enables achievements the player has already unlocked on the site so that "
+        "the player will be notified if they meet the unlock conditions again, useful for custom "
+        "speedrun criteria or simply for fun.\n\n"
+        "Setting takes effect on next game load.");
+    }
+
+    if (ImGui::Checkbox("Enable Spectator Mode", &spectator_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_SPECTATOR_ENABLED, spectator_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Enable unlocking achievements in Spectator Mode.\n\n"
+        "While in Spectator Mode, achievements and leaderboards will be processed and displayed "
+        "on screen, but will not be submitted to the server.\n\n"
+        "If this is on at game launch, it will not be turned off until game close, because a "
+        "RetroAchievements session will not be created.\n\n"
+        "If this is off at game launch, it can be toggled freely while the game is running.");
+    }
+    ImGui::EndDisabled();
+
+    ImGui::Separator();
+    ImGui::Text("Display Settings");
+
+#ifdef USE_DISCORD_PRESENCE
+    ImGui::BeginDisabled(!Config::Get(Config::MAIN_USE_DISCORD_PRESENCE));
+    if (ImGui::Checkbox("Enable Discord Presence", &discord_presence_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_DISCORD_PRESENCE_ENABLED, discord_presence_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Use RetroAchievements rich presence in your Discord status.\n\n"
+        "Show Current Game on Discord must be enabled.");
+    }
+    ImGui::EndDisabled();
+#endif
+
+    if (ImGui::Checkbox("Enable Progress Notifications", &progress_enabled))
+    {
+      Config::SetBaseOrCurrent(Config::RA_PROGRESS_ENABLED, progress_enabled);
+      Config::Save();
+    }
+    if (ImGui::IsItemHovered())
+    {
+      ImGui::SetTooltip(
+        "Enable progress notifications on achievements.\n\n"
+        "Displays a brief popup message whenever the player makes progress on an achievement "
+        "that tracks an accumulated value, such as 60 out of 120 stars.");
+    }
+  }
+#else
+  ImGui::TextWrapped("RetroAchievements support is not enabled in this build.");
+#endif
+}
+
+void DrawAchievementsWindow(UIState* state)
+{
+#ifdef USE_RETRO_ACHIEVEMENTS
+  auto& instance = AchievementManager::GetInstance();
+  if (!instance.IsGameLoaded() || !Config::Get(Config::RA_ENABLED))
+    return;
+
+  if (!ImGui::Begin("Achievements", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    ImGui::End();
+    return;
+  }
+
+  auto* client = instance.GetClient();
+  if (!client)
+    return;
+    
+  rc_client_achievement_list_t* achievement_list = rc_client_create_achievement_list(
+      client, 
+      RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE | RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL,
+      RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_PROGRESS);
+  
+  if (achievement_list)
+  {
+    for (u32 bucket_idx = 0; bucket_idx < achievement_list->num_buckets; bucket_idx++)
+    {
+      auto& bucket = achievement_list->buckets[bucket_idx];
+      if (ImGui::CollapsingHeader(bucket.label))
+      {
+        for (u32 ach_idx = 0; ach_idx < bucket.num_achievements; ach_idx++)
+        {
+          auto* achievement = bucket.achievements[ach_idx];
+          
+          // Get badge image
+          const auto& badge = instance.GetAchievementBadge(achievement->id, !achievement->unlocked);
+          ImGui::PushID(achievement->id);
+
+          // Create badge texture if needed
+          if (state->achievement_badges.find(achievement->id) == state->achievement_badges.end())
+          {
+            TextureConfig config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 
+                               0, AbstractTextureType::Texture_2D);
+            auto tex = g_gfx->CreateTexture(config);
+            if (tex)
+            {
+              tex->Load(0, badge.width, badge.height, badge.width, badge.data.data(), 
+                       badge.width * badge.height * sizeof(u32));
+              state->achievement_badges[achievement->id] = std::move(tex);
+            }
+          }
+
+          // Badge border color
+          ImVec4 border_color;
+          if ((achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_HARDCORE) != 0)
+            border_color = ImVec4(1.0f, 0.843f, 0.0f, 1.0f);  // Gold
+          else if ((achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_SOFTCORE) != 0)
+            border_color = ImVec4(0.0f, 0.478f, 1.0f, 1.0f);  // Blue
+          else
+            border_color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);    // Gray
+
+          // Draw badge with border
+          const float badge_size = 64.0f;
+          const float border_thickness = 4.0f;
+          ImVec2 pos = ImGui::GetCursorScreenPos();
+          ImGui::GetWindowDrawList()->AddRect(
+              pos,
+              ImVec2(pos.x + badge_size + border_thickness * 2,
+                     pos.y + badge_size + border_thickness * 2),
+              ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0, border_thickness);
+          
+          ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + border_thickness,
+                                    ImGui::GetCursorPos().y + border_thickness));
+          ImGui::Image((ImTextureID)(intptr_t)state->achievement_badges[achievement->id].get(), ImVec2(badge_size, badge_size));
+          
+          ImGui::SameLine();
+          ImGui::BeginGroup();
+          
+          // Title and description
+          ImGui::TextWrapped("%s", achievement->title);
+          ImGui::TextWrapped("%s", achievement->description);
+          ImGui::Text("%d points", achievement->points);
+
+          // Unlock status
+          if (achievement->unlocked)
+          {
+            if (achievement->unlock_time != 0)
+            {
+              time_t time = achievement->unlock_time;
+              struct tm* timeinfo = localtime(&time);
+              char buffer[80];
+              strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+              ImGui::Text("Unlocked at %s", buffer);
+            }
+            else
+            {
+              ImGui::Text("Unlocked");
+            }
+          }
+          else
+          {
+            ImGui::Text("Locked");
+          }
+
+          // Progress bar
+          if (achievement->measured_percent > 0.000)
+          {
+            ImGui::ProgressBar(achievement->unlocked ? 1.0f : achievement->measured_percent / 100.0f,
+                             ImVec2(-1, 0), achievement->measured_progress);
+          }
+
+          ImGui::EndGroup();
+          ImGui::PopID();
+          ImGui::Separator();
+        }
+      }
+    }
+    rc_client_destroy_achievement_list(achievement_list);
+  }
+
+  ImGui::End();
+#endif
+}
+
 }  // namespace ImGuiFrontend

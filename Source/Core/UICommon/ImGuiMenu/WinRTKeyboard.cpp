@@ -1,6 +1,6 @@
 #include "WinRTKeyboard.h"
 
-#include <winrt/Windows.UI.ViewManagement.Core.h>
+#include <winrt/Windows.UI.ViewManagement.h>
 
 namespace UWP
 {
@@ -9,7 +9,14 @@ std::mutex g_buffer_mutex;
 
 void ShowKeyboard()
 {
-  winrt::Windows::UI::ViewManagement::Core::CoreInputView::GetForCurrentView().TryShowPrimaryView();
+  auto inputPane = winrt::Windows::UI::ViewManagement::InputPane::GetForCurrentView();
+  inputPane.TryShow();
+}
+
+void HideKeyboard()
+{
+  auto inputPane = winrt::Windows::UI::ViewManagement::InputPane::GetForCurrentView();
+  inputPane.TryHide();
 }
 
 void HandleCharacter(uint32_t keycode)

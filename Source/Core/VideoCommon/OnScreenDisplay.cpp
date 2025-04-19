@@ -20,6 +20,8 @@
 
 #include "Core/Config/MainSettings.h"
 #include "Core/State.h"
+#include <Core/AchievementManager.h>
+#include <Core/Config/AchievementSettings.h>
 
 #ifdef WINRT_XBOX
 #include <winrt/Windows.UI.Core.h>
@@ -176,6 +178,111 @@ void AddMessage(std::string message, u32 ms, u32 argb,
   s_messages.emplace(MessageType::Typeless, Message(std::move(message), ms, argb, std::move(icon)));
 }
 
+#ifdef USE_RETRO_ACHIEVEMENTS
+void DrawAchievementsOverlay()
+{
+  auto& instance = AchievementManager::GetInstance();
+  if (!instance.IsGameLoaded() || !Config::Get(Config::RA_ENABLED))
+    return;
+
+  // Position in top-right corner
+  const float scale = ImGui::GetIO().DisplayFramebufferScale.x;
+  const float margin = 10.0f * scale;
+  ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - margin, margin), ImGuiCond_Always,
+                         ImVec2(1.0f, 0.0f));
+
+  if (!ImGui::Begin("##AchievementsOverlay", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize |
+                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                        ImGuiWindowFlags_NoNav))
+  {
+    ImGui::End();
+    return;
+  }
+
+  auto* client = instance.GetClient();
+  auto* achievement_list = rc_client_create_achievement_list(
+      client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE_AND_UNOFFICIAL,
+      RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_PROGRESS);
+
+  if (achievement_list)
+  {
+    bool has_progress = false;
+    for (u32 bucket_idx = 0; bucket_idx < achievement_list->num_buckets; bucket_idx++)
+    {
+      auto& bucket = achievement_list->buckets[bucket_idx];
+      for (u32 ach_idx = 0; ach_idx < bucket.num_achievements; ach_idx++)
+      {
+        auto* achievement = bucket.achievements[ach_idx];
+        if (!achievement->unlocked && achievement->measured_percent > 0.0f)
+        {
+          has_progress = true;
+          
+          // Get badge image
+          const auto& badge = instance.GetAchievementBadge(achievement->id, !achievement->unlocked);
+          ImGui::PushID(achievement->id);
+
+          // Create badge texture if needed
+          if (s_setting_state.achievement_badges.find(achievement->id) == s_setting_state.achievement_badges.end())
+          {
+            TextureConfig tex_config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0,
+                                   AbstractTextureType::Texture_2D);
+            auto texture = g_gfx->CreateTexture(tex_config);
+            if (texture)
+            {
+              texture->Load(0, badge.width, badge.height, badge.width, badge.data.data(),
+                          sizeof(u32) * badge.width * badge.height);
+              s_setting_state.achievement_badges[achievement->id] = std::move(texture);
+            }
+          }
+
+          // Draw badge with gray border
+          const float badge_size = 32.0f * scale;  // Smaller badges for overlay
+          const float border_thickness = 2.0f * scale;
+          ImVec2 pos = ImGui::GetCursorScreenPos();
+          ImGui::GetWindowDrawList()->AddRect(
+              pos,
+              ImVec2(pos.x + badge_size + border_thickness * 2,
+                     pos.y + badge_size + border_thickness * 2),
+              ImGui::ColorConvertFloat4ToU32(ImVec4(0.5f, 0.5f, 0.5f, 1.0f)),
+              0.0f, 0, border_thickness);
+
+          ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + border_thickness,
+                                    ImGui::GetCursorPos().y + border_thickness));
+          if (auto it = s_setting_state.achievement_badges.find(achievement->id);
+              it != s_setting_state.achievement_badges.end())
+          {
+            ImGui::Image((ImTextureID)(intptr_t)it->second.get(), ImVec2(badge_size, badge_size));
+          }
+
+          ImGui::SameLine();
+          ImGui::BeginGroup();
+          ImGui::TextWrapped("%s", achievement->title);
+          ImGui::ProgressBar(achievement->measured_percent / 100.0f,
+                           ImVec2(-1, 0), achievement->measured_progress);
+          ImGui::EndGroup();
+
+          ImGui::PopID();
+          ImGui::Separator();
+        }
+      }
+    }
+    
+    if (!has_progress)
+    {
+      ImGui::End();
+      rc_client_destroy_achievement_list(achievement_list);
+      return;
+    }
+
+    rc_client_destroy_achievement_list(achievement_list);
+  }
+
+  ImGui::End();
+}
+#endif
+
 void DrawMessages()
 {
   const bool draw_messages = Config::Get(Config::MAIN_OSD_MESSAGES);
@@ -185,6 +292,10 @@ void DrawMessages()
   int index = 0;
 
   std::lock_guard lock{s_messages_mutex};
+
+#ifdef USE_RETRO_ACHIEVEMENTS
+  DrawAchievementsOverlay();
+#endif
 
   for (auto it = s_messages.begin(); it != s_messages.end();)
   {

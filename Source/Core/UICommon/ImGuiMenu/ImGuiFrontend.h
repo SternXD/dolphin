@@ -24,7 +24,8 @@ enum SelectedTab
   Wii,
   GC,
   Advanced,
-  About
+  About,
+  Achievements
 };
 
 enum ThemeBG
@@ -61,6 +62,7 @@ public:
   SelectedTab selectedTab = General;
   ThemeBG currentBG = BG_All;
   CarouselCategory carouselCat = CAll;
+  std::map<uint32_t, std::shared_ptr<AbstractTexture>> achievement_badges;
 };
 
 class FrontendResult
@@ -156,6 +158,8 @@ void CreateWiiTab(UIState* state);
 void CreateAdvancedTab(UIState* state);
 void CreatePathsTab(UIState* state);
 void CreateAudioTab(UIState* state);
+void CreateAchievementsTab(UIState* state);
+void DrawAchievementsWindow(UIState* state);
 void CreateWiiPort(int index, std::vector<std::string> devices);
 void CreateGCPort(int index, std::vector<std::string> devices);
 
