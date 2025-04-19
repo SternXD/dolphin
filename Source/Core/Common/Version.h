@@ -15,5 +15,6 @@ const std::string& GetUserAgentStr();
 const std::string& GetScmDistributorStr();
 const std::string& GetScmUpdateTrackStr();
 const std::string& GetNetplayDolphinVer();
+extern std::string GetConsoleModelString();
 int GetScmCommitsAheadMaster();
 }  // namespace Common

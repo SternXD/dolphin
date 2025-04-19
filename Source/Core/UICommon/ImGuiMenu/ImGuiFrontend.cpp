@@ -12,6 +12,9 @@
 #include "WinRTKeyboard.h"
 #include "ImageLoader.h"
 
+#include <cctype>
+#include <memory>
+
 #include <imgui.h>
 #include <Windows.h>
 
@@ -49,10 +52,17 @@
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/System.h"
-#include <Core/CommonTitles.h>
-#include <Core/Config/AchievementSettings.h>
-#include <Core/AchievementManager.h>
+#include "Core/CommonTitles.h"
+#include "Core/Config/AchievementSettings.h"
+#include "Core/AchievementManager.h"
+
+#include <rcheevos/include/rc_runtime.h>
+#include <rcheevos/include/rc_error.h>
 #include <rcheevos/include/rc_client.h>
+#include <rcheevos/include/rc_api_runtime.h>
+#include <rcheevos/include/rc_api_user.h>
+#include <rcheevos/include/rc_api_info.h>
+#include <rcheevos/include/rc_hash.h>
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -75,7 +85,7 @@
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
-#include <InputCommon/ControllerInterface/MappingCommon.h>
+#include "InputCommon/ControllerInterface/MappingCommon.h"
 
 #include "AudioCommon/AudioCommon.h"
 #include "AudioCommon/Enums.h"
@@ -192,6 +202,10 @@ ImGuiFrontend::ImGuiFrontend()
   PopulateControls();
   LoadGameList();
   LoadThemes();
+
+  #ifdef USE_RETRO_ACHIEVEMENTS
+  AchievementManager::GetInstance().Init();
+  #endif  // USE_RETRO_ACHIEVEMENTS
 
   m_ccat = (CarouselCategory) Config::Get(Config::FRONTEND_LAST_CATEGORY);
   m_last_category = m_ccat;
@@ -2859,7 +2873,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.8.1 (Based on Dolphin 2503-210)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-210)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
@@ -3266,11 +3280,11 @@ void CreateAchievementsTab(UIState* state)
         {
           Config::SetBaseOrCurrent(Config::RA_USERNAME, username);
 
-          try
-          {
+        try
+        {
             std::string before_token = Config::Get(Config::RA_API_TOKEN);
 
-            AchievementManager::GetInstance().Login(std::string(username));
+            AchievementManager::GetInstance().Login(std::string(password));
 
             std::string after_token = Config::Get(Config::RA_API_TOKEN);
 
@@ -3290,16 +3304,16 @@ void CreateAchievementsTab(UIState* state)
               OutputDebugStringA("RetroAchievements: Login successful\n");
 #endif
             }
-          }
-          catch (const std::exception& e)
-          {
-            login_error = std::string("Exception during login: ") + e.what();
+        }
+        catch (const std::exception& e)
+        {
+          login_error = std::string("Exception during login: ") + e.what();
 #ifdef _WIN32
             OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
-            popup_error_message = login_error;
-            show_error_popup = true;
-          }
+          popup_error_message = login_error;
+          show_error_popup = true;
+        }
         }
 
         // Clear password from memory for security
@@ -3321,37 +3335,38 @@ void CreateAchievementsTab(UIState* state)
 #ifdef _WIN32
         OutputDebugStringA("RetroAchievements: User logged out\n");
 #endif
-        AchievementManager::GetInstance().Logout();
+          AchievementManager::GetInstance().Logout();
         Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
-        Config::Save();
+          Config::Save();
+        }
       }
-    }
     ImGui::Separator();
     ImGui::Text("Function Settings");
 
     ImGui::BeginDisabled(!logged_in || (is_running && !hardcore_enabled));
     if (ImGui::Checkbox("Enable Hardcore Mode", &hardcore_enabled))
     {
-      Config::SetBaseOrCurrent(Config::RA_HARDCORE_ENABLED, hardcore_enabled);
-      Config::Save();
-    }
+        Config::SetBaseOrCurrent(Config::RA_HARDCORE_ENABLED, hardcore_enabled);
+        Config::Save();
+      }
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
-        "Enable Hardcore Mode on RetroAchievements.\n\n"
-        "Hardcore Mode is intended to provide an experience as close to gaming on the original "
-        "hardware as possible. RetroAchievements rankings are primarily oriented towards Hardcore "
-        "points (Softcore points are tracked but not as heavily emphasized) and leaderboards "
-        "require Hardcore Mode to be on.\n\n"
-        "To ensure this experience, the following features will be disabled:\n"
-        "- Loading states (saving states is allowed)\n"
-        "- Emulator speeds below 100% (frame advance disabled, turbo allowed)\n"
-        "- Cheats\n"
-        "- Memory patches (file patches allowed)\n"
-        "- Debug UI\n"
-        "- Freelook\n\n"
-        "This cannot be turned on while a game is playing.\n"
-        "Close your current game before enabling.");
+          "Enable Hardcore Mode on RetroAchievements.\n\n"
+          "Hardcore Mode is intended to provide an experience as close to gaming on the original "
+          "hardware as possible. RetroAchievements rankings are primarily oriented towards "
+          "Hardcore "
+          "points (Softcore points are tracked but not as heavily emphasized) and leaderboards "
+          "require Hardcore Mode to be on.\n\n"
+          "To ensure this experience, the following features will be disabled:\n"
+          "- Loading states (saving states is allowed)\n"
+          "- Emulator speeds below 100% (frame advance disabled, turbo allowed)\n"
+          "- Cheats\n"
+          "- Memory patches (file patches allowed)\n"
+          "- Debug UI\n"
+          "- Freelook\n\n"
+          "This cannot be turned on while a game is playing.\n"
+          "Close your current game before enabling.");
     }
     ImGui::EndDisabled();
 
@@ -3364,10 +3379,11 @@ void CreateAchievementsTab(UIState* state)
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
-        "Enable unlocking unofficial achievements as well as official achievements.\n\n"
-        "Unofficial achievements may be optional or unfinished achievements that have not been "
-        "deemed official by RetroAchievements and may be useful for testing or simply for fun.\n\n"
-        "Setting takes effect on next game load.");
+          "Enable unlocking unofficial achievements as well as official achievements.\n\n"
+          "Unofficial achievements may be optional or unfinished achievements that have not been "
+          "deemed official by RetroAchievements and may be useful for testing or simply for "
+          "fun.\n\n"
+          "Setting takes effect on next game load.");
     }
 
     if (ImGui::Checkbox("Enable Encore Mode", &encore_enabled))
@@ -3378,11 +3394,11 @@ void CreateAchievementsTab(UIState* state)
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
-        "Enable unlocking achievements in Encore Mode.\n\n"
-        "Encore Mode re-enables achievements the player has already unlocked on the site so that "
-        "the player will be notified if they meet the unlock conditions again, useful for custom "
-        "speedrun criteria or simply for fun.\n\n"
-        "Setting takes effect on next game load.");
+          "Enable unlocking achievements in Encore Mode.\n\n"
+          "Encore Mode re-enables achievements the player has already unlocked on the site so that "
+          "the player will be notified if they meet the unlock conditions again, useful for custom "
+          "speedrun criteria or simply for fun.\n\n"
+          "Setting takes effect on next game load.");
     }
 
     if (ImGui::Checkbox("Enable Spectator Mode", &spectator_enabled))
@@ -3393,12 +3409,12 @@ void CreateAchievementsTab(UIState* state)
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
-        "Enable unlocking achievements in Spectator Mode.\n\n"
-        "While in Spectator Mode, achievements and leaderboards will be processed and displayed "
-        "on screen, but will not be submitted to the server.\n\n"
-        "If this is on at game launch, it will not be turned off until game close, because a "
-        "RetroAchievements session will not be created.\n\n"
-        "If this is off at game launch, it can be toggled freely while the game is running.");
+          "Enable unlocking achievements in Spectator Mode.\n\n"
+          "While in Spectator Mode, achievements and leaderboards will be processed and displayed "
+          "on screen, but will not be submitted to the server.\n\n"
+          "If this is on at game launch, it will not be turned off until game close, because a "
+          "RetroAchievements session will not be created.\n\n"
+          "If this is off at game launch, it can be toggled freely while the game is running.");
     }
     ImGui::EndDisabled();
 
@@ -3416,7 +3432,7 @@ void CreateAchievementsTab(UIState* state)
     {
       ImGui::SetTooltip(
         "Use RetroAchievements rich presence in your Discord status.\n\n"
-        "Show Current Game on Discord must be enabled.");
+                        "Show Current Game on Discord must be enabled.");
     }
     ImGui::EndDisabled();
 #endif
@@ -3429,9 +3445,9 @@ void CreateAchievementsTab(UIState* state)
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
-        "Enable progress notifications on achievements.\n\n"
-        "Displays a brief popup message whenever the player makes progress on an achievement "
-        "that tracks an accumulated value, such as 60 out of 120 stars.");
+          "Enable progress notifications on achievements.\n\n"
+          "Displays a brief popup message whenever the player makes progress on an achievement "
+          "that tracks an accumulated value, such as 60 out of 120 stars.");
     }
   }
 #else
