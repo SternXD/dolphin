@@ -47,6 +47,8 @@ using namespace winrt;
 #include "VideoCommon/VideoBackendBase.h"
 #include "Common/WindowSystemInfo.h"
 
+#include <rcheevos/include/rc_api_runtime.h>
+
 namespace OSD
 {
 constexpr float LEFT_MARGIN = 10.0f;         // Pixels to the left of OSD messages.
@@ -327,6 +329,141 @@ void DrawInGameMenu()
       if (ImGui::BeginTabItem("Options"))
       {
         ImGuiFrontend::DrawSettingsMenu(&s_setting_state, frame_scale);
+        ImGui::EndTabItem();
+      }
+
+      if (ImGui::BeginTabItem("Achievements"))
+      {
+        static int view = 0;
+        ImGui::RadioButton("Achievement List", &view, 0); ImGui::SameLine();
+        ImGui::RadioButton("Leaderboards", &view, 1);
+        if (view == 0)
+        {
+          auto& mgr = AchievementManager::GetInstance();
+          if (!mgr.IsGameLoaded())
+          {
+            ImGui::TextUnformatted("No game loaded.");
+          }
+          else
+          {
+            auto* client = mgr.GetClient();
+            auto* list = rc_client_create_achievement_list(
+                client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE_AND_UNOFFICIAL,
+                RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_PROGRESS);
+            if (list)
+            {
+              ImGui::BeginChild("##AchievementsScroll", ImVec2(0, 0), true);
+              static std::map<u32, std::unique_ptr<AbstractTexture>> badge_textures;
+              for (u32 b = 0; b < list->num_buckets; ++b)
+              {
+                const auto& bucket = list->buckets[b];
+                ImGui::TextUnformatted(bucket.label);
+                ImGui::Indent();
+
+                ImGui::TextUnformatted("Unlocked");
+                ImGui::Indent();
+                for (u32 a = 0; a < bucket.num_achievements; ++a)
+                {
+                  const auto* ach = bucket.achievements[a];
+                  if (ach->unlocked)
+                  {
+                    const auto& slice = mgr.GetAchievementBadge(ach->id, ach->unlocked == 0);
+                    auto it_tex = badge_textures.find(ach->id);
+                    if (it_tex == badge_textures.end())
+                    {
+                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2DArray);
+                      auto tex = g_gfx->CreateTexture(cfg);
+                      if (tex)
+                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(), slice.width * slice.height * sizeof(u32));
+                      badge_textures[ach->id] = std::move(tex);
+                      it_tex = badge_textures.find(ach->id);
+                    }
+                    ImGui::BeginGroup();
+                    if (it_tex != badge_textures.end() && it_tex->second)
+                      ImGui::Image(*it_tex->second.get(), ImVec2(32, 32));
+                    ImGui::SameLine();
+                    ImGui::Text("%s (%u pts)", ach->title, ach->points);
+                    if (ach->measured_percent > 0.0f)
+                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0), ach->measured_progress);
+                    ImGui::EndGroup();
+                    ImGui::Separator();
+                  }
+                }
+                ImGui::Unindent();
+
+                ImGui::TextUnformatted("Locked");
+                ImGui::Indent();
+                for (u32 a = 0; a < bucket.num_achievements; ++a)
+                {
+                  const auto* ach = bucket.achievements[a];
+                  if (!ach->unlocked)
+                  {
+                    const auto& slice = mgr.GetAchievementBadge(ach->id, ach->unlocked == 0);
+                    auto it_tex = badge_textures.find(ach->id);
+                    if (it_tex == badge_textures.end())
+                    {
+                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2DArray);
+                      auto tex = g_gfx->CreateTexture(cfg);
+                      if (tex)
+                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(), slice.width * slice.height * sizeof(u32));
+                      badge_textures[ach->id] = std::move(tex);
+                      it_tex = badge_textures.find(ach->id);
+                    }
+                    ImGui::BeginGroup();
+                    if (it_tex != badge_textures.end() && it_tex->second)
+                      ImGui::Image(*it_tex->second.get(), ImVec2(32, 32));
+                    ImGui::SameLine();
+                    ImGui::Text("%s (%u pts)", ach->title, ach->points);
+                    if (ach->measured_percent > 0.0f)
+                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0), ach->measured_progress);
+                    ImGui::EndGroup();
+                    ImGui::Separator();
+                  }
+                }
+                ImGui::Unindent();
+                ImGui::Unindent();
+              }
+              ImGui::EndChild();
+              rc_client_destroy_achievement_list(list);
+            }
+          }
+        }
+        else
+        {
+          auto& mgr = AchievementManager::GetInstance();
+          if (!mgr.IsGameLoaded())
+          {
+            ImGui::TextUnformatted("No game loaded.");
+          }
+          else
+          {
+            auto* client = mgr.GetClient();
+            auto* lbs = rc_client_create_leaderboard_list(
+                client, RC_CLIENT_LEADERBOARD_LIST_GROUPING_TRACKING);
+            if (lbs)
+            {
+              ImGui::BeginChild("##LeaderboardsScroll", ImVec2(0, 0), true);
+              for (u32 b = 0; b < lbs->num_buckets; ++b)
+              {
+                const auto& bucket = lbs->buckets[b];
+                ImGui::TextUnformatted(bucket.label);
+                ImGui::Indent();
+                for (u32 i = 0; i < bucket.num_leaderboards; ++i)
+                {
+                  const auto* board = bucket.leaderboards[i];
+                  ImGui::BeginGroup();
+                  ImGui::Text("%s: %s", board->title, board->tracker_value ? board->tracker_value : "");
+                  ImGui::TextWrapped(board->description);
+                  ImGui::EndGroup();
+                  ImGui::Separator();
+                }
+                ImGui::Unindent();
+              }
+              ImGui::EndChild();
+              rc_client_destroy_leaderboard_list(lbs);
+            }
+          }
+        }
         ImGui::EndTabItem();
       }
 

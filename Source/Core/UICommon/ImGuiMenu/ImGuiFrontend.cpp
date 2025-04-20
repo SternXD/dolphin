@@ -52,6 +52,7 @@
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/System.h"
+#include "Core/WiiRoot.h"
 #include "Core/CommonTitles.h"
 #include "Core/Config/AchievementSettings.h"
 #include "Core/AchievementManager.h"
@@ -543,8 +544,8 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     {
       m_state.currentBG = BG_Menu;
 
-      ImGui::SetNextWindowSize(ImVec2(540 * m_frame_scale, 425 * m_frame_scale));
-      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (540 / 2) * m_frame_scale,
+      ImGui::SetNextWindowSize(ImVec2(700 * m_frame_scale, 425 * m_frame_scale));
+      ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (700 / 2) * m_frame_scale,
                                      ImGui::GetIO().DisplaySize.y / 2 - (425 / 2) * m_frame_scale));
       if (ImGui::Begin("Settings", nullptr,
                        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
@@ -916,7 +917,34 @@ void CreateGraphicsTab(UIState* state)
       Config::SetBaseOrCurrent(Config::GFX_ENHANCE_FORCE_TRUE_COLOR, forceTrueColor);
       Config::Save();
     }
-
+    
+    bool arbitraryMipmapDetection = Config::Get(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION);
+    if (ImGui::Checkbox("Arbitrary Mipmap Detection", &arbitraryMipmapDetection))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION, arbitraryMipmapDetection);
+      Config::Save();
+    }
+    
+    if (arbitraryMipmapDetection)
+    {
+      float threshold = Config::Get(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD);
+      if (ImGui::SliderFloat("Mipmap Detection Threshold", &threshold, 1.0f, 50.0f, "%.1f"))
+      {
+        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD, threshold);
+        Config::Save();
+      }
+      ImGui::TextWrapped("Adjusts the threshold for detecting arbitrary mipmaps. Higher values increase detection sensitivity but may cause false positives.");
+    }
+   
+    #ifndef WINRT_XBOX // I don't have a hdr impl yet for UWP.
+    bool hdrOutput = Config::Get(Config::GFX_ENHANCE_HDR_OUTPUT);
+    if (ImGui::Checkbox("HDR Output", &hdrOutput))
+    {
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_HDR_OUTPUT, hdrOutput);
+      Config::Save();
+    }
+    ImGui::TextWrapped("Enables HDR output when supported by the display. Requires a compatible GPU and display.");
+    #endif
     const char* anisolevel_items[] = {"1x", "2x", "4x", "8x", "16x"};
     auto aniso = Config::Get(Config::GFX_ENHANCE_MAX_ANISOTROPY);
     int aniso_idx = static_cast<int>(aniso);
@@ -991,7 +1019,7 @@ void CreateGraphicsTab(UIState* state)
       int accuracy = Config::Get(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES);
       if (ImGui::SliderInt("Texture Cache Accuracy", &accuracy, 0, 512))
       {
-        Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, accuracy);
+        Config::SetBase(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, accuracy);
         Config::Save();
       }
       ImGui::Text("Safe");
@@ -2794,7 +2822,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     if (ImGui::Selectable("General", state->selectedTab == General))
     {
       state->selectedTab = General;
-    }
+    } 
     if (ImGui::Selectable("Interface", state->selectedTab == Interface))
     {
       state->selectedTab = Interface;
@@ -2873,7 +2901,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-210)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-216)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
@@ -3161,7 +3189,6 @@ void CreateAudioTab(UIState* state)
 void CreateAchievementsTab(UIState* state)
 {
 #ifdef USE_RETRO_ACHIEVEMENTS
-  // Existing variable declarations
   static bool integration_enabled = Config::Get(Config::RA_ENABLED);
   static bool hardcore_enabled = Config::Get(Config::RA_HARDCORE_ENABLED);
   static bool unofficial_enabled = Config::Get(Config::RA_UNOFFICIAL_ENABLED);
@@ -3173,29 +3200,9 @@ void CreateAchievementsTab(UIState* state)
   static char password[256] = "";
   static bool show_password = false;
   static std::string login_error;
-  static bool show_error_popup = false;
-  static std::string popup_error_message;
 
   const bool is_running = Core::GetState(Core::System::GetInstance()) != Core::State::Uninitialized;
   const bool logged_in = !Config::Get(Config::RA_API_TOKEN).empty();
-
-  if (show_error_popup)
-  {
-    ImGui::OpenPopup("Login Error");
-    if (ImGui::BeginPopupModal("Login Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
-    {
-      ImGui::TextWrapped("%s", popup_error_message.c_str());
-      ImGui::Separator();
-
-      if (ImGui::Button("OK", ImVec2(120, 0)))
-      {
-        show_error_popup = false;
-        ImGui::CloseCurrentPopup();
-      }
-
-      ImGui::EndPopup();
-    }
-  }
 
   if (ImGui::Checkbox("Enable RetroAchievements.org Integration", &integration_enabled))
   {
@@ -3252,7 +3259,6 @@ void CreateAchievementsTab(UIState* state)
       ImGui::BeginDisabled(is_running);
       if (ImGui::Button("Log In"))
       {
-        // Log to Visual Studio that a login attempt was made
 #ifdef _WIN32
         OutputDebugStringA(
             ("RetroAchievements: Login attempt for user: " + std::string(username) + "\n").c_str());
@@ -3264,8 +3270,6 @@ void CreateAchievementsTab(UIState* state)
 #ifdef _WIN32
           OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
-          popup_error_message = login_error;
-          show_error_popup = true;
         }
         else if (std::string(password).empty())
         {
@@ -3273,15 +3277,13 @@ void CreateAchievementsTab(UIState* state)
 #ifdef _WIN32
           OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
-          popup_error_message = login_error;
-          show_error_popup = true;
         }
         else
         {
           Config::SetBaseOrCurrent(Config::RA_USERNAME, username);
 
         try
-        {
+        {            
             std::string before_token = Config::Get(Config::RA_API_TOKEN);
 
             AchievementManager::GetInstance().Login(std::string(password));
@@ -3294,8 +3296,6 @@ void CreateAchievementsTab(UIState* state)
 #ifdef _WIN32
               OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
-              popup_error_message = login_error;
-              show_error_popup = true;
             }
             else
             {
@@ -3311,12 +3311,10 @@ void CreateAchievementsTab(UIState* state)
 #ifdef _WIN32
             OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
-          popup_error_message = login_error;
-          show_error_popup = true;
         }
-        }
-
-        // Clear password from memory for security
+      
+      }
+        // Clear password from memory
         memset(password, 0, sizeof(password));
       }
       ImGui::EndDisabled();
@@ -3330,16 +3328,108 @@ void CreateAchievementsTab(UIState* state)
     }
     else
     {
-      if (ImGui::Button("Log Out"))
+      // Display user profile information
+      auto& instance = AchievementManager::GetInstance();
+      const auto* user_info = rc_client_get_user_info(instance.GetClient());
+      
+      if (user_info)
       {
+        ImGui::BeginGroup();
+        
+        // User name and points
+        ImGui::Text("%s", user_info->display_name);
+        ImGui::Text("%u points", user_info->score);
+        
+        // User badge/icon
+        const AchievementManager::Badge& player_badge = instance.GetPlayerBadge();
+        if (!player_badge.data.empty())
+        {
+          static std::shared_ptr<AbstractTexture> profile_texture;
+          static std::vector<u8> last_badge_data;
+          
+          if (last_badge_data != player_badge.data)
+          {
+            last_badge_data = player_badge.data;
+            
+            TextureConfig tex_config(player_badge.width, player_badge.height, 1, 1, 1,
+                                     AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
+            
+            profile_texture = g_gfx->CreateTexture(tex_config, "RetroAchievements profile picture");
+            if (profile_texture)
+            {
+              profile_texture->Load(0, player_badge.width, player_badge.height, player_badge.width,
+                                   player_badge.data.data(),
+                                   sizeof(u8) * 4 * player_badge.width * player_badge.height);
+            }
+          }
+          
+          if (profile_texture)
+          {
+            ImGui::Image((ImTextureID)(intptr_t)profile_texture.get(), ImVec2(64, 64));
+          }
+          else
+          {
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                ImGui::GetCursorScreenPos(),
+                ImVec2(ImGui::GetCursorScreenPos().x + 64, ImGui::GetCursorScreenPos().y + 64),
+                IM_COL32(50, 150, 255, 255));
+            
+            ImGui::Dummy(ImVec2(64, 64));
+          }
+        }
+        
+        ImGui::EndGroup();
+        
+        ImGui::SameLine(ImGui::GetWindowWidth() - 100);
+        if (ImGui::Button("Log Out"))
+        {
 #ifdef _WIN32
-        OutputDebugStringA("RetroAchievements: User logged out\n");
+          OutputDebugStringA("RetroAchievements: User logged out\n");
 #endif
           AchievementManager::GetInstance().Logout();
-        Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
+          Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
           Config::Save();
         }
       }
+      else
+      {
+        if (ImGui::Button("Log Out"))
+        {
+#ifdef _WIN32
+          OutputDebugStringA("RetroAchievements: User logged out\n");
+#endif
+          AchievementManager::GetInstance().Logout();
+          Config::SetBaseOrCurrent(Config::RA_API_TOKEN, "");
+          Config::Save();
+        }
+      }
+      
+      if (instance.IsGameLoaded())
+      {
+        ImGui::Separator();
+        rc_client_user_game_summary_t game_summary;
+        rc_client_get_user_game_summary(instance.GetClient(), &game_summary);
+        
+        ImGui::Text("%s", instance.GetGameDisplayName().data());
+        ImGui::Text("Unlocked %u/%u achievements worth %u/%u points", 
+                   game_summary.num_unlocked_achievements,
+                   game_summary.num_core_achievements,
+                   game_summary.points_unlocked,
+                   game_summary.points_core);
+        
+        float progress = game_summary.num_core_achievements > 0 ?
+                        (float)game_summary.num_unlocked_achievements / game_summary.num_core_achievements : 0.0f;
+        ImGui::ProgressBar(progress, ImVec2(-1, 0), 
+                          (std::to_string(game_summary.num_unlocked_achievements) + "/" + 
+                           std::to_string(game_summary.num_core_achievements)).c_str());
+        
+        const auto& rich_presence = instance.GetRichPresence();
+        if (rich_presence[0] != '\0')
+        {
+          ImGui::TextWrapped("%s", rich_presence.data());
+        }
+      }
+    }
     ImGui::Separator();
     ImGui::Text("Function Settings");
 
@@ -3488,11 +3578,9 @@ void DrawAchievementsWindow(UIState* state)
         {
           auto* achievement = bucket.achievements[ach_idx];
           
-          // Get badge image
           const auto& badge = instance.GetAchievementBadge(achievement->id, !achievement->unlocked);
           ImGui::PushID(achievement->id);
 
-          // Create badge texture if needed
           if (state->achievement_badges.find(achievement->id) == state->achievement_badges.end())
           {
             TextureConfig config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 
@@ -3506,16 +3594,14 @@ void DrawAchievementsWindow(UIState* state)
             }
           }
 
-          // Badge border color
           ImVec4 border_color;
           if ((achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_HARDCORE) != 0)
-            border_color = ImVec4(1.0f, 0.843f, 0.0f, 1.0f);  // Gold
+            border_color = ImVec4(1.0f, 0.843f, 0.0f, 1.0f);
           else if ((achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_SOFTCORE) != 0)
-            border_color = ImVec4(0.0f, 0.478f, 1.0f, 1.0f);  // Blue
+            border_color = ImVec4(0.0f, 0.478f, 1.0f, 1.0f);
           else
-            border_color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);    // Gray
+            border_color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
 
-          // Draw badge with border
           const float badge_size = 64.0f;
           const float border_thickness = 4.0f;
           ImVec2 pos = ImGui::GetCursorScreenPos();
@@ -3532,12 +3618,9 @@ void DrawAchievementsWindow(UIState* state)
           ImGui::SameLine();
           ImGui::BeginGroup();
           
-          // Title and description
           ImGui::TextWrapped("%s", achievement->title);
           ImGui::TextWrapped("%s", achievement->description);
           ImGui::Text("%d points", achievement->points);
-
-          // Unlock status
           if (achievement->unlocked)
           {
             if (achievement->unlock_time != 0)
@@ -3558,7 +3641,6 @@ void DrawAchievementsWindow(UIState* state)
             ImGui::Text("Locked");
           }
 
-          // Progress bar
           if (achievement->measured_percent > 0.000)
           {
             ImGui::ProgressBar(achievement->unlocked ? 1.0f : achievement->measured_percent / 100.0f,
