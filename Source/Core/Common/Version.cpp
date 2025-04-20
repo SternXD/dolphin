@@ -8,7 +8,7 @@
 #include "Common/scmrev.h"
 
 #ifdef WINRT_XBOX
-#include <objbase.h>  // for STDAPI, HRESULT, etc.
+#include <objbase.h>
 #include <windows.applicationmodel.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>

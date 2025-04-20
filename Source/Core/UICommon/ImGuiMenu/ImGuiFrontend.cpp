@@ -57,13 +57,13 @@
 #include "Core/Config/AchievementSettings.h"
 #include "Core/AchievementManager.h"
 
-#include <rcheevos/include/rc_runtime.h>
-#include <rcheevos/include/rc_error.h>
-#include <rcheevos/include/rc_client.h>
-#include <rcheevos/include/rc_api_runtime.h>
-#include <rcheevos/include/rc_api_user.h>
-#include <rcheevos/include/rc_api_info.h>
-#include <rcheevos/include/rc_hash.h>
+#include "rcheevos/include/rc_runtime.h"
+#include "rcheevos/include/rc_error.h"
+#include "rcheevos/include/rc_client.h"
+#include "rcheevos/include/rc_api_runtime.h"
+#include "rcheevos/include/rc_api_user.h"
+#include "rcheevos/include/rc_api_info.h"
+#include "rcheevos/include/rc_hash.h"
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -1017,14 +1017,25 @@ void CreateGraphicsTab(UIState* state)
     if (ImGui::TreeNode("Texture Cache"))
     {
       int accuracy = Config::Get(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES);
-      if (ImGui::SliderInt("Texture Cache Accuracy", &accuracy, 0, 512))
+      
+      int slider_index = 0;
+      if (accuracy == 512)
+        slider_index = 1;
+      else if (accuracy == 128)
+        slider_index = 2;
+      
+      const char* accuracy_labels[] = {"Safe (0)", "Normal (512)", "Fast (128)"};
+      if (ImGui::Combo("Texture Cache Accuracy", &slider_index, accuracy_labels, 3))
       {
-        Config::SetBase(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, accuracy);
+        int new_accuracy = 0;
+        if (slider_index == 1)
+          new_accuracy = 512;
+        else if (slider_index == 2)
+          new_accuracy = 128;
+          
+        Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, new_accuracy);
         Config::Save();
       }
-      ImGui::Text("Safe");
-      ImGui::SameLine();
-      ImGui::Text("Fast");
 
       bool gpuTextureDecoding = Config::Get(Config::GFX_ENABLE_GPU_TEXTURE_DECODING);
       if (ImGui::Checkbox("GPU Texture Decoding", &gpuTextureDecoding))
@@ -1276,12 +1287,14 @@ void CreateGraphicsTab(UIState* state)
         Config::Save();
       }
 
+      #ifndef WINRT_XBOX // This currently only works on the Vulkan backend
       bool backendMultithreading = Config::Get(Config::GFX_BACKEND_MULTITHREADING);
       if (ImGui::Checkbox("Backend Multithreading", &backendMultithreading))
       {
         Config::SetBaseOrCurrent(Config::GFX_BACKEND_MULTITHREADING, backendMultithreading);
         Config::Save();
       }
+      #endif
 
       bool preferVsForLinePoint = Config::Get(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION);
       if (ImGui::Checkbox("Prefer VS for Point/Line Expansion", &preferVsForLinePoint))
@@ -1957,6 +1970,14 @@ void CreateAdvancedTab(UIState* state)
     Config::Save();
   }
   ImGui::TextWrapped("Synchronizes the GPU thread with the CPU thread when the CPU is idle.\nThis helps prevent desynchronization between the CPU and GPU, which can cause visual glitches or crashes.\n\nIf unsure, leave this checked.");
+
+  bool emulateDiscSpeed = !Config::Get(Config::MAIN_FAST_DISC_SPEED);
+  if (ImGui::Checkbox("Emulate Disc Speed", &emulateDiscSpeed))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_FAST_DISC_SPEED, !emulateDiscSpeed);
+    Config::Save();
+  }
+  ImGui::TextWrapped("When checked, the emulator uses normal disc speed (ON = Stock, OFF = Fast).\nDisabling emulation accelerates the disc transfer rate, removing loading times but may cause issues with games that rely on precise timing.\n\nIf unsure, leave this checked.");
 
   if (ImGui::TreeNode("Clock Override"))
   {
@@ -2855,13 +2876,13 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     {
       state->selectedTab = Paths;
     }
-    if (ImGui::Selectable("About", state->selectedTab == About))
-    {
-      state->selectedTab = About;
-    }
     if (ImGui::Selectable("Achievements", state->selectedTab == Achievements))
     {
       state->selectedTab = Achievements;
+    }
+    if (ImGui::Selectable("About", state->selectedTab == About))
+    {
+      state->selectedTab = About;
     }
 
     ImGui::EndListBox();

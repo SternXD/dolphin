@@ -20,8 +20,10 @@
 
 #include "Core/Config/MainSettings.h"
 #include "Core/State.h"
-#include <Core/AchievementManager.h>
-#include <Core/Config/AchievementSettings.h>
+#include "Core/AchievementManager.h"
+#include "Core/Config/AchievementSettings.h"
+#include "rcheevos/include/rc_api_runtime.h"
+
 
 #ifdef WINRT_XBOX
 #include <winrt/Windows.UI.Core.h>
@@ -46,8 +48,6 @@ using namespace winrt;
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "Common/WindowSystemInfo.h"
-
-#include <rcheevos/include/rc_api_runtime.h>
 
 namespace OSD
 {

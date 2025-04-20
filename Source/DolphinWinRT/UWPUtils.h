@@ -8,13 +8,13 @@
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.UI.Core.h>
 
-#include <Common/FileUtil.h>
+#include "Common/FileUtil.h"
 
-#include <Core/HW/Wiimote.h>
-#include <Core/Core.h>
-#include <Core/HW/WiimoteEmu/WiimoteEmu.h>
-#include <Core/HW/DVD/DVDInterface.h>
-#include <Core/System.h>
+#include "Core/HW/Wiimote.h"
+#include "Core/Core.h"
+#include "Core/HW/WiimoteEmu/WiimoteEmu.h"
+#include "Core/HW/DVD/DVDInterface.h"
+#include "Core/System.h"
 
 #include <ppltasks.h>
 
