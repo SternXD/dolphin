@@ -36,7 +36,9 @@ The "Debug" solution configuration is significantly slower, more verbose and les
 Credits:
 
 [Dolphin](https://dolphin-emu.org/): for their amazing work on [Dolphin Emulator](https://dolphin-emu.org/)
+
 [SirMangler](https://github.com/SirMangler): for their amazing work on porting Dolphin for UWP
+
 [worleydl](https://github.com/worleydl): For his [oct2024-rebase](https://github.com/worleydl/dolphin-color/tree/oct2024-rebase) branch (it helped so much)
 
 Dolphin Emulator is licensed under GPLv2+ and is not associated with Nintendo.
