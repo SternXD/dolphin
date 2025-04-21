@@ -56,6 +56,7 @@
 #include "Core/CommonTitles.h"
 #include "Core/Config/AchievementSettings.h"
 #include "Core/AchievementManager.h"
+#include "Core/PowerPC/PowerPC.h"
 
 #include "rcheevos/include/rc_runtime.h"
 #include "rcheevos/include/rc_error.h"
@@ -1406,201 +1407,70 @@ void CreateGameCubeTab(UIState* state)
 
     ImGui::TreePop();
   }
-  // I need to figure out why this won't boot and just get's stuck at Loading..
   if (ImGui::TreeNode("Load GameCube Main Menu"))
   {
-    bool has_ntscj = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/JAP/" + GC_IPL) ||
-                    File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/JAP/" + GC_IPL);
-    bool has_ntscu = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/USA/" + GC_IPL) ||
-                    File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/USA/" + GC_IPL);
-    bool has_pal = File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/EUR/" + GC_IPL) ||
-                  File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/EUR/" + GC_IPL);
-
-    if (!has_ntscj)
-      ImGui::BeginDisabled();
-    if (ImGui::Button("NTSC-J"))
-    {
+    auto has_ipl = [](DiscIO::Region region) {
+      std::string region_dir;
+      switch (region) {
+        case DiscIO::Region::NTSC_J: region_dir = "JAP"; break;
+        case DiscIO::Region::NTSC_U: region_dir = "USA"; break;
+        case DiscIO::Region::PAL: region_dir = "EUR"; break;
+        default: return false;
+      }
+      return File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/" + region_dir + "/" + GC_IPL) ||
+             File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/" + region_dir + "/" + GC_IPL);
+    };
+    auto BootGameCubeIPL = [state](DiscIO::Region region) {
+      state->controlsDisabled = true;
       state->showSettingsWindow = false;
-      
-      OutputDebugStringA("[GameCube IPL] Starting boot process for NTSC-J\n");
-      
-      WindowSystemInfo wsi;
-      CoreWindow window = CoreWindow::GetForCurrentThread();
-      void* abi = winrt::get_abi(window);
-      wsi.type = WindowSystemType::Windows;
-      wsi.display_connection = nullptr;
-      wsi.render_window = abi;
-      wsi.render_surface = abi;
-      wsi.render_surface_scale = 1.0f;
-      wsi.render_width = static_cast<u32>(window.Bounds().Width);
-      wsi.render_height = static_cast<u32>(window.Bounds().Height);
-      
-      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
-                                            wsi.render_width, wsi.render_height);
-      OutputDebugStringA(wsi_info.c_str());
+      auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(region));
+      BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params),
+                            WindowSystemInfo());
+      state->controlsDisabled = false;
+    };
 
-      try {
-        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for NTSC-J\n");
-        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::NTSC_J));
-        
-        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
-        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/JAP/" + GC_IPL;
-        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/JAP/" + GC_IPL;
-        
-        if (!File::Exists(user_path) && !File::Exists(sys_path))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for NTSC-J\n");
-          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
-                        user_path, sys_path);
-          return;
-        }
-        
-        OutputDebugStringA("[GameCube IPL] Attempting BootCore for NTSC-J\n");
-        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for NTSC-J\n");
-          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
-        }
-        else
-        {
-          OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-J\n");
-      }
-      }
-      catch (const std::exception& e) {
-        std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-J boot: %s\n", e.what());
-        OutputDebugStringA(error.c_str());
-        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
-      }
+
+    bool any = false;
+    if (has_ipl(DiscIO::Region::NTSC_J))
+    {
+      any = true;
+      if (ImGui::Button("NTSC-J"))
+        BootGameCubeIPL(DiscIO::Region::NTSC_J);
     }
-    if (!has_ntscj)
-      ImGui::EndDisabled();
-
-    if (!has_ntscu)
+    else
+    {
       ImGui::BeginDisabled();
-    if (ImGui::Button("NTSC-U"))
-    {
-      state->showSettingsWindow = false;
-
-      OutputDebugStringA("[GameCube IPL] Starting boot process for NTSC-U\n");
-      
-      WindowSystemInfo wsi;
-      CoreWindow window = CoreWindow::GetForCurrentThread();
-      void* abi = winrt::get_abi(window);
-      wsi.type = WindowSystemType::Windows;
-      wsi.display_connection = nullptr;
-      wsi.render_window = abi;
-      wsi.render_surface = abi;
-      wsi.render_surface_scale = 1.0f;
-      wsi.render_width = static_cast<u32>(window.Bounds().Width);
-      wsi.render_height = static_cast<u32>(window.Bounds().Height);
-      
-      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
-                                            wsi.render_width, wsi.render_height);
-      OutputDebugStringA(wsi_info.c_str());
-
-      try {
-        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for NTSC-U\n");
-        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::NTSC_U));
-        
-        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
-        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/USA/" + GC_IPL;
-        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/USA/" + GC_IPL;
-        
-        if (!File::Exists(user_path) && !File::Exists(sys_path))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for NTSC-U\n");
-          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
-                        user_path, sys_path);
-          return;
-        }
-        
-        OutputDebugStringA("[GameCube IPL] Attempting BootCore for NTSC-U\n");
-        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for NTSC-U\n");
-          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
-        }
-        else
-        {
-          OutputDebugStringA("[GameCube IPL] BootCore succeeded for NTSC-U\n");
-      }
-      }
-      catch (const std::exception& e) {
-        std::string error = StringFromFormat("[GameCube IPL] Exception during NTSC-U boot: %s\n", e.what());
-        OutputDebugStringA(error.c_str());
-        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
-      }
-    }
-    if (!has_ntscu)
+      ImGui::Button("NTSC-J");
       ImGui::EndDisabled();
-
-    if (!has_pal)
+    }
+    if (has_ipl(DiscIO::Region::NTSC_U))
+    {
+      any = true;
+      if (ImGui::Button("NTSC-U"))
+        BootGameCubeIPL(DiscIO::Region::NTSC_U);
+    }
+    else
+    {
       ImGui::BeginDisabled();
-    if (ImGui::Button("PAL"))
-    {
-      state->showSettingsWindow = false;
-
-      OutputDebugStringA("[GameCube IPL] Starting boot process for PAL\n");
-      
-      WindowSystemInfo wsi;
-      CoreWindow window = CoreWindow::GetForCurrentThread();
-      void* abi = winrt::get_abi(window);
-      wsi.type = WindowSystemType::Windows;
-      wsi.display_connection = nullptr;
-      wsi.render_window = abi;
-      wsi.render_surface = abi;
-      wsi.render_surface_scale = 1.0f;
-      wsi.render_width = static_cast<u32>(window.Bounds().Width);
-      wsi.render_height = static_cast<u32>(window.Bounds().Height);
-      
-      std::string wsi_info = StringFromFormat("[GameCube IPL] WindowSystemInfo initialized - Width: %d, Height: %d\n",
-                                            wsi.render_width, wsi.render_height);
-      OutputDebugStringA(wsi_info.c_str());
-
-      try {
-        OutputDebugStringA("[GameCube IPL] Creating IPL boot parameters for PAL\n");
-        auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(DiscIO::Region::PAL));
-        
-        OutputDebugStringA("[GameCube IPL] Checking IPL path existence\n");
-        std::string user_path = File::GetUserPath(D_GCUSER_IDX) + "/EUR/" + GC_IPL;
-        std::string sys_path = File::GetSysDirectory() + GC_SYS_DIR + "/EUR/" + GC_IPL;
-        
-        if (!File::Exists(user_path) && !File::Exists(sys_path))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: IPL file not found for PAL\n");
-          PanicAlertFmt("IPL file not found. Please make sure you have placed the correct IPL file in:\n{}\nor\n{}", 
-                        user_path, sys_path);
-          return;
-        }
-        
-        OutputDebugStringA("[GameCube IPL] Attempting BootCore for PAL\n");
-        if (!BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), wsi))
-        {
-          OutputDebugStringA("[GameCube IPL] ERROR: BootCore failed for PAL\n");
-          PanicAlertFmt("Failed to boot GameCube IPL. Please check that your IPL files are valid.");
-        }
-        else
-        {
-          OutputDebugStringA("[GameCube IPL] BootCore succeeded for PAL\n");
-      }
-      }
-      catch (const std::exception& e) {
-        std::string error = StringFromFormat("[GameCube IPL] Exception during PAL boot: %s\n", e.what());
-        OutputDebugStringA(error.c_str());
-        PanicAlertFmt("Exception while booting GameCube IPL: {}", e.what());
-      }
-    }
-    if (!has_pal)
+      ImGui::Button("NTSC-U");
       ImGui::EndDisabled();
-
-    if (!has_ntscj && !has_ntscu && !has_pal)
+    }
+    if (has_ipl(DiscIO::Region::PAL))
     {
+      any = true;
+      if (ImGui::Button("PAL"))
+        BootGameCubeIPL(DiscIO::Region::PAL);
+    }
+    else
+    {
+      ImGui::BeginDisabled();
+      ImGui::Button("PAL");
+      ImGui::EndDisabled();
+    }
+    if (!any)
       ImGui::TextWrapped("Put IPL ROMs in User/GC/<region>/IPL.bin");
-    }
-
     ImGui::TreePop();
   }
-
   auto slot1 = Config::Get(Config::MAIN_SLOT_A);
   if (ImGui::TreeNode("Slot A"))
   {
@@ -1737,16 +1607,18 @@ void CreateGameCubeTab(UIState* state)
 
 void CreateWiiTab(UIState* state)
 {
-  if (ImGui::Button("Boot Wii System Menu"))
+  static bool s_booted_wii_menu = false;
+  if (ImGui::Button("Load Wii System Menu") && !s_booted_wii_menu)
   {
+    s_booted_wii_menu = true;
+    state->controlsDisabled = true;
+    state->showSettingsWindow = false;
     Core::Stop(Core::System::GetInstance());
     Core::Shutdown(Core::System::GetInstance());
-
-    state->controlsDisabled = true;
-    BootManager::BootCore(Core::System::GetInstance(), 
-                         std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU}),
-                         WindowSystemInfo());
+    auto boot_params = std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU});
+    BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), WindowSystemInfo());
     state->controlsDisabled = false;
+    s_booted_wii_menu = false;
   }
   ImGui::TextWrapped("Boots the Wii System Menu from the NAND.");
 
@@ -1922,17 +1794,28 @@ void CreateAdvancedTab(UIState* state)
   if (ImGui::TreeNode("CPU Options"))
   {
 #ifdef WINRT_XBOX
-    const char* cpu_cores[] = {"Interpreter", "Cached Interpreter", "JIT64"};
+    // Only show available cores for Xbox
+    // Enum values: Interpreter=0, JIT64=1, CachedInterpreter=5
+    const char* cpu_cores[] = {"Interpreter", "JIT64", "Cached Interpreter"};
+    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter, PowerPC::CPUCore::JIT64, PowerPC::CPUCore::CachedInterpreter};
     const int cpu_cores_count = 3;
 #else
-    const char* cpu_cores[] = {"Interpreter", "Cached Interpreter", "JIT64", "JITARM64"};
+    // Enum values: Interpreter=0, JIT64=1, JITARM64=4, CachedInterpreter=5
+    const char* cpu_cores[] = {"Interpreter", "JIT64", "JITARM64", "Cached Interpreter"};
+    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter, PowerPC::CPUCore::JIT64, PowerPC::CPUCore::JITARM64, PowerPC::CPUCore::CachedInterpreter};
     const int cpu_cores_count = 4;
 #endif
-    int current_core = static_cast<int>(Config::Get(Config::MAIN_CPU_CORE));
-    
-    if (ImGui::Combo("CPU Emulation Engine", &current_core, cpu_cores, cpu_cores_count))
+    PowerPC::CPUCore config_core = Config::Get(Config::MAIN_CPU_CORE);
+    int combo_index = 0;
+    for (int i = 0; i < cpu_cores_count; ++i) {
+      if (cpu_core_values[i] == config_core) {
+        combo_index = i;
+        break;
+      }
+    }
+    if (ImGui::Combo("CPU Emulation Engine", &combo_index, cpu_cores, cpu_cores_count))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_CPU_CORE, static_cast<PowerPC::CPUCore>(current_core));
+      Config::SetBaseOrCurrent(Config::MAIN_CPU_CORE, cpu_core_values[combo_index]);
       Config::Save();
     }
 
@@ -2498,7 +2381,7 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
       if (ImGui::Selectable(std::format("{}##{}", game->GetName(m_title_database).c_str(), game->GetFilePath())
                   .c_str()) &&
           timeSinceInit > 1500)
-      {
+    {
         ImGui::EndListBox();
         return game;
       }
@@ -2625,12 +2508,19 @@ AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameF
     }
   }
 
-  return result->second.get();
+  if (result->second && result->second.get())
+  {
+    return result->second.get();
+  }
+  else
+  {
+    m_cover_textures.erase(game_id);
+    return GetHandleForGame(game);
+  }
 }
 
-std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path)
+std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is_theme_asset)
 {
-  // First try to read the file into a buffer
   std::string file_data;
   if (!File::ReadFileToString(path, file_data))
     return {};
@@ -2639,16 +2529,16 @@ std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path)
   if (buffer.empty())
     return {};
 
-  // Use stb_image to load the image data
   int width, height, channels;
   unsigned char* image_data = stbi_load_from_memory(buffer.data(), static_cast<int>(buffer.size()), 
-                                                  &width, &height, &channels, 4);
+                                                   &width, &height, &channels, 4);
   if (!image_data)
     return {};
 
   TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
 
-  std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, path);
+  std::string texture_name = is_theme_asset ? "theme:" + path : "cover:" + path;
+  std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, texture_name);
   if (!tex)
   {
     stbi_image_free(image_data);
@@ -2670,14 +2560,16 @@ ImGuiFrontend::CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game)
     game->DownloadDefaultCover();
   }
 
-  return std::move(CreateTextureFromPath(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"));
+  // Explicitly mark this as NOT a theme asset (false)
+  return std::move(CreateTextureFromPath(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png", false));
 }
 
 AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 {
-  if (m_missing_tex != nullptr)
+  if (m_missing_tex != nullptr && m_missing_tex.get() != nullptr)
     return m_missing_tex.get();
   
+  // The missing texture is neither a theme asset nor a cover, so use default false
   auto missing_tex = CreateTextureFromPath("Assets/missing.png");
   m_missing_tex = std::move(missing_tex);
 
@@ -2686,6 +2578,9 @@ AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 
 void ImGuiFrontend::LoadGameList()
 {
+  // Clear the cover textures cache when reloading the game list to prevent memory issue with large game libraries
+  m_cover_textures.clear();
+  
   m_paths.clear();
   m_games.clear();
   m_displayed_games.clear();
@@ -2922,7 +2817,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-216)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-232)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
@@ -2957,23 +2852,26 @@ bool FrontendTheme::TryLoad(std::string path)
 
     if (File::Exists(pngPath))
     {
-      auto bg = CreateTextureFromPath(pngPath);
+      auto bg = CreateTextureFromPath(pngPath, true);
       m_textures[target] = std::move(bg);
     }
     else if (File::Exists(jpgPath))
     {
-      auto bg = CreateTextureFromPath(jpgPath);
+      auto bg = CreateTextureFromPath(jpgPath, true);
       m_textures[target] = std::move(bg);
     }
     else if (File::Exists(jpegPath))
     {
-      auto bg = CreateTextureFromPath(jpegPath);
+      auto bg = CreateTextureFromPath(jpegPath, true);
       m_textures[target] = std::move(bg);
     }
 
     if (!m_textures[target])
     {
-      m_textures[target] = m_textures[backup];
+      if (m_textures[backup])
+      {
+        m_textures[target] = m_textures[backup];
+      }
     }
   };
 
@@ -3002,11 +2900,11 @@ bool FrontendTheme::TryLoad(std::string path)
   // Try loading carousel background in either format
   std::shared_ptr<AbstractTexture> all_bg;
   if (File::Exists(path + "\\carousel_background_all.png"))
-    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.png");
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.png", true);
   else if (File::Exists(path + "\\carousel_background_all.jpg"))
-    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpg");
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpg", true);
   else if (File::Exists(path + "\\carousel_background_all.jpeg"))
-    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpeg");
+    all_bg = CreateTextureFromPath(path + "\\carousel_background_all.jpeg", true);
 
   if (!all_bg)
     return false;
@@ -3016,11 +2914,11 @@ bool FrontendTheme::TryLoad(std::string path)
   // Try loading menu background in either format
   std::shared_ptr<AbstractTexture> menu_bg;
   if (File::Exists(path + "\\menu_background.png"))
-    menu_bg = CreateTextureFromPath(path + "\\menu_background.png");
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.png", true);
   else if (File::Exists(path + "\\menu_background.jpg"))
-    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpg");
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpg", true);
   else if (File::Exists(path + "\\menu_background.jpeg"))
-    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpeg");
+    menu_bg = CreateTextureFromPath(path + "\\menu_background.jpeg", true);
 
   if (!menu_bg)
     return false;
@@ -3030,11 +2928,11 @@ bool FrontendTheme::TryLoad(std::string path)
   // Try loading list UI in either format
   std::shared_ptr<AbstractTexture> list_ui_bg;
   if (File::Exists(path + "\\list_ui.png"))
-    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.png");
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.png", true);
   else if (File::Exists(path + "\\list_ui.jpg"))
-    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpg");
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpg", true);
   else if (File::Exists(path + "\\list_ui.jpeg"))
-    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpeg");
+    list_ui_bg = CreateTextureFromPath(path + "\\list_ui.jpeg", true);
 
   if (!list_ui_bg)
     return false;
@@ -3044,11 +2942,11 @@ bool FrontendTheme::TryLoad(std::string path)
   // Try loading carousel UI in either format
   std::shared_ptr<AbstractTexture> carousel_ui_bg;
   if (File::Exists(path + "\\carousel_ui.png"))
-    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.png");
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.png", true);
   else if (File::Exists(path + "\\carousel_ui.jpg"))
-    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpg");
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpg", true);
   else if (File::Exists(path + "\\carousel_ui.jpeg"))
-    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpeg");
+    carousel_ui_bg = CreateTextureFromPath(path + "\\carousel_ui.jpeg", true);
 
   if (!carousel_ui_bg)
     return false;
@@ -3532,6 +3430,7 @@ void CreateAchievementsTab(UIState* state)
     ImGui::Separator();
     ImGui::Text("Display Settings");
 
+#ifndef WINRT_XBOX // We cannot use Discord RPC on Xbox as you cannot launch the Discord Win32 app.
 #ifdef USE_DISCORD_PRESENCE
     ImGui::BeginDisabled(!Config::Get(Config::MAIN_USE_DISCORD_PRESENCE));
     if (ImGui::Checkbox("Enable Discord Presence", &discord_presence_enabled))
@@ -3546,6 +3445,7 @@ void CreateAchievementsTab(UIState* state)
                         "Show Current Game on Discord must be enabled.");
     }
     ImGui::EndDisabled();
+#endif
 #endif
 
     if (ImGui::Checkbox("Enable Progress Notifications", &progress_enabled))

@@ -58,6 +58,7 @@
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -85,7 +86,7 @@
     </ClCompile>
     <PostBuildEvent>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-</Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
@@ -129,6 +130,9 @@
     <ClCompile Include="App.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="Sys\ApprovedInis.json">
+      <DeploymentContent>true</DeploymentContent>
+    </Text>
     <None Include="DolphinWinRT_TemporaryKey.pfx" />
     <None Include="packages.config" />
     <None Include="PropertySheet.props" />
