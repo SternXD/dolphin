@@ -65,6 +65,7 @@
 #include "rcheevos/include/rc_api_user.h"
 #include "rcheevos/include/rc_api_info.h"
 #include "rcheevos/include/rc_hash.h"
+#include <rcheevos/include/rc_client_raintegration.h>
 
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
@@ -96,6 +97,13 @@
 namespace WGI = winrt::Windows::Gaming::Input;
 using winrt::Windows::UI::Core::CoreWindow;
 using namespace winrt;
+
+// Static handler for config changes (ImGui does not use QObject or signals/slots)
+void OnHardcoreChangedStatic()
+{
+  if (Config::Get(Config::RA_HARDCORE_ENABLED))
+    Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
+}
 
 namespace ImGuiFrontend {
 
@@ -206,8 +214,19 @@ ImGuiFrontend::ImGuiFrontend()
   LoadThemes();
 
   #ifdef USE_RETRO_ACHIEVEMENTS
-  AchievementManager::GetInstance().Init();
-  #endif  // USE_RETRO_ACHIEVEMENTS
+  // ImGui doesn't have a window handle, so pass nullptr
+  AchievementManager::GetInstance().Init(nullptr);
+  // Disable debug mode if hardcore is active
+  if (AchievementManager::GetInstance().IsHardcoreModeActive())
+    Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
+  // Listen for config changes to RA_ENABLED or RA_HARDCORE_ENABLED
+  Config::AddConfigChangedCallback([]() {
+    OnHardcoreChangedStatic();
+  });
+  // If hardcore is enabled at startup, ensure we react
+  if (Config::Get(Config::RA_HARDCORE_ENABLED))
+    OnHardcoreChangedStatic();
+#endif  // USE_RETRO_ACHIEVEMENTS
 
   m_ccat = (CarouselCategory) Config::Get(Config::FRONTEND_LAST_CATEGORY);
   m_last_category = m_ccat;
@@ -2817,7 +2836,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-232)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-253)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"

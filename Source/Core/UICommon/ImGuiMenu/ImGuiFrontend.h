@@ -4,6 +4,9 @@
 #include "VideoCommon/AbstractTexture.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 
+// Free function to handle hardcore mode config changes
+void OnHardcoreChangedStatic();
+
 namespace UICommon
 {
 class GameFile;
@@ -163,5 +166,5 @@ void DrawAchievementsWindow(UIState* state);
 void CreateWiiPort(int index, std::vector<std::string> devices);
 void CreateGCPort(int index, std::vector<std::string> devices);
 
-std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path);
+std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is_theme_asset = false);
 }  // namespace ImGuiFrontend
