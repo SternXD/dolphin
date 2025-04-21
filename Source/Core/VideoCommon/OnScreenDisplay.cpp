@@ -18,21 +18,20 @@
 #include "Common/Config/Config.h"
 #include "Common/Timer.h"
 
-#include "Core/Config/MainSettings.h"
-#include "Core/State.h"
 #include "Core/AchievementManager.h"
 #include "Core/Config/AchievementSettings.h"
+#include "Core/Config/MainSettings.h"
+#include "Core/State.h"
 #include "rcheevos/include/rc_api_runtime.h"
 
-
 #ifdef WINRT_XBOX
-#include <winrt/Windows.UI.Core.h>
+#include <gamingdeviceinformation.h>
+#include <windows.applicationmodel.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>
-#include <winrt/windows.graphics.display.core.h>
+#include <winrt/Windows.UI.Core.h>
 #include <winrt/windows.gaming.input.h>
-#include <windows.applicationmodel.h>
-#include <gamingdeviceinformation.h>
+#include <winrt/windows.graphics.display.core.h>
 
 #include "DolphinWinRT/Host.h"
 #include "DolphinWinRT/UWPUtils.h"
@@ -41,13 +40,13 @@ using winrt::Windows::UI::Core::CoreWindow;
 using namespace winrt;
 #endif
 
+#include "Common/WindowSystemInfo.h"
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/AbstractTexture.h"
 #include "VideoCommon/Assets/CustomTextureData.h"
 #include "VideoCommon/TextureConfig.h"
-#include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/VideoBackendBase.h"
-#include "Common/WindowSystemInfo.h"
+#include "VideoCommon/VideoConfig.h"
 
 namespace OSD
 {
@@ -291,32 +290,40 @@ void DrawInGameMenu()
 
       if (ImGui::BeginTabItem("Save States"))
       {
-        ImGui::TextWrapped("Warning: Savestates can be buggy with Dual Core enabled, do not rely on them "
-                    "or you may risk losing progress.");
+        ImGui::TextWrapped(
+            "Warning: Savestates can be buggy with Dual Core enabled, do not rely on them "
+            "or you may risk losing progress.");
         for (int i = 0; i < 5; i++)
         {
-          if (ImGui::BeginChild(std::format("savestate-{}", i).c_str(), ImVec2(-1, 75 * frame_scale), true))
+          if (ImGui::BeginChild(std::format("savestate-{}", i).c_str(),
+                                ImVec2(-1, 75 * frame_scale), true))
           {
             ImGui::Text("Port %d - %s", i, State::GetInfoStringOfSlot(i).c_str());
 
             if (ImGui::Button(std::format("Load State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
-                s_show_menu = false;
-                auto& system = Core::System::GetInstance();
-                Core::SetState(system, Core::State::Running);
-                State::Load(system, i);
-              }, false);
+              Core::RunOnCPUThread(
+                  Core::System::GetInstance(),
+                  [i] {
+                    s_show_menu = false;
+                    auto& system = Core::System::GetInstance();
+                    Core::SetState(system, Core::State::Running);
+                    State::Load(system, i);
+                  },
+                  false);
             }
 
             if (ImGui::Button(std::format("Save State in Port {}", i).c_str()))
             {
-              Core::RunOnCPUThread(Core::System::GetInstance(), [i] {
-                s_show_menu = false;
-                auto& system = Core::System::GetInstance();
-                Core::SetState(system, Core::State::Running);
-                State::Save(system, i);
-              }, false);
+              Core::RunOnCPUThread(
+                  Core::System::GetInstance(),
+                  [i] {
+                    s_show_menu = false;
+                    auto& system = Core::System::GetInstance();
+                    Core::SetState(system, Core::State::Running);
+                    State::Save(system, i);
+                  },
+                  false);
             }
           }
 
@@ -335,7 +342,8 @@ void DrawInGameMenu()
       if (ImGui::BeginTabItem("Achievements"))
       {
         static int view = 0;
-        ImGui::RadioButton("Achievement List", &view, 0); ImGui::SameLine();
+        ImGui::RadioButton("Achievement List", &view, 0);
+        ImGui::SameLine();
         ImGui::RadioButton("Leaderboards", &view, 1);
         if (view == 0)
         {
@@ -371,10 +379,13 @@ void DrawInGameMenu()
                     auto it_tex = badge_textures.find(ach->id);
                     if (it_tex == badge_textures.end())
                     {
-                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2DArray);
+                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
+                                        AbstractTextureFormat::RGBA8, 0,
+                                        AbstractTextureType::Texture_2DArray);
                       auto tex = g_gfx->CreateTexture(cfg);
                       if (tex)
-                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(), slice.width * slice.height * sizeof(u32));
+                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
+                                  slice.width * slice.height * sizeof(u32));
                       badge_textures[ach->id] = std::move(tex);
                       it_tex = badge_textures.find(ach->id);
                     }
@@ -384,7 +395,8 @@ void DrawInGameMenu()
                     ImGui::SameLine();
                     ImGui::Text("%s (%u pts)", ach->title, ach->points);
                     if (ach->measured_percent > 0.0f)
-                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0), ach->measured_progress);
+                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0),
+                                         ach->measured_progress);
                     ImGui::EndGroup();
                     ImGui::Separator();
                   }
@@ -402,10 +414,13 @@ void DrawInGameMenu()
                     auto it_tex = badge_textures.find(ach->id);
                     if (it_tex == badge_textures.end())
                     {
-                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2DArray);
+                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
+                                        AbstractTextureFormat::RGBA8, 0,
+                                        AbstractTextureType::Texture_2DArray);
                       auto tex = g_gfx->CreateTexture(cfg);
                       if (tex)
-                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(), slice.width * slice.height * sizeof(u32));
+                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
+                                  slice.width * slice.height * sizeof(u32));
                       badge_textures[ach->id] = std::move(tex);
                       it_tex = badge_textures.find(ach->id);
                     }
@@ -415,7 +430,8 @@ void DrawInGameMenu()
                     ImGui::SameLine();
                     ImGui::Text("%s (%u pts)", ach->title, ach->points);
                     if (ach->measured_percent > 0.0f)
-                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0), ach->measured_progress);
+                      ImGui::ProgressBar(ach->measured_percent * 0.01f, ImVec2(-1, 0),
+                                         ach->measured_progress);
                     ImGui::EndGroup();
                     ImGui::Separator();
                   }
@@ -452,7 +468,8 @@ void DrawInGameMenu()
                 {
                   const auto* board = bucket.leaderboards[i];
                   ImGui::BeginGroup();
-                  ImGui::Text("%s: %s", board->title, board->tracker_value ? board->tracker_value : "");
+                  ImGui::Text("%s: %s", board->title,
+                              board->tracker_value ? board->tracker_value : "");
                   ImGui::TextWrapped(board->description);
                   ImGui::EndGroup();
                   ImGui::Separator();

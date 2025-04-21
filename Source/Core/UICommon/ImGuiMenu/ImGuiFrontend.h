@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Core/TitleDatabase.h"
-#include "VideoCommon/AbstractTexture.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
+#include "VideoCommon/AbstractTexture.h"
 
 // Free function to handle hardcore mode config changes
 void OnHardcoreChangedStatic();
@@ -74,7 +74,8 @@ public:
   std::shared_ptr<UICommon::GameFile> game_result;
   bool netplay;
 
-  FrontendResult() {
+  FrontendResult()
+  {
     game_result = nullptr;
     netplay = false;
   }
@@ -143,12 +144,13 @@ private:
 
   std::chrono::high_resolution_clock::time_point m_time_since_init =
       std::chrono::high_resolution_clock::now();
-  
+
   std::vector<std::shared_ptr<UICommon::GameFile>> m_displayed_games;
-  CarouselCategory m_last_category = CarouselCategory::CCount; // Default to CCount to trigger an update
+  CarouselCategory m_last_category =
+      CarouselCategory::CCount;  // Default to CCount to trigger an update
   std::string m_prev_list_search;
   std::vector<std::shared_ptr<UICommon::GameFile>> m_list_search_results;
-  char m_list_search_buf[32] {};
+  char m_list_search_buf[32]{};
 };
 
 void DrawSettingsMenu(UIState* state, float frame_scale);
@@ -166,5 +168,6 @@ void DrawAchievementsWindow(UIState* state);
 void CreateWiiPort(int index, std::vector<std::string> devices);
 void CreateGCPort(int index, std::vector<std::string> devices);
 
-std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is_theme_asset = false);
+std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path,
+                                                       bool is_theme_asset = false);
 }  // namespace ImGuiFrontend

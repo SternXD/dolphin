@@ -5,40 +5,46 @@
 
 #include "ImGuiFrontend.h"
 
-#include "DolphinWinRT/UWPUtils.h"
 #include "DolphinWinRT/Host.h"
+#include "DolphinWinRT/UWPUtils.h"
 
 #include "ImGuiNetplay.h"
-#include "WinRTKeyboard.h"
 #include "ImageLoader.h"
+#include "WinRTKeyboard.h"
 
 #include <cctype>
 #include <memory>
 
-#include <imgui.h>
 #include <Windows.h>
-
+#include <imgui.h>
 
 #include "../../../../Externals/tinygltf/tinygltf/stb_image.h"
 
 #ifdef WINRT_XBOX
-#include <winrt/Windows.UI.Core.h>
+#include <gamingdeviceinformation.h>
+#include <windows.applicationmodel.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>
-#include <winrt/windows.graphics.display.core.h>
+#include <winrt/Windows.UI.Core.h>
 #include <winrt/windows.gaming.input.h>
-#include <windows.applicationmodel.h>
-#include <gamingdeviceinformation.h>
+#include <winrt/windows.graphics.display.core.h>
 #endif
 
 #include <unordered_map>
 #include <wil/com.h>
 
+#include "Core/AchievementManager.h"
+#include "Core/Boot/Boot.h"
+#include "Core/BootManager.h"
+#include "Core/CommonTitles.h"
+#include "Core/Config/AchievementSettings.h"
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/NetplaySettings.h"
-#include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/SYSCONFSettings.h"
-#include "Core/TitleDatabase.h"
+#include "Core/Config/UISettings.h"
+#include "Core/Config/WiimoteSettings.h"
+#include "Core/ConfigManager.h"
 #include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/GCPadEmu.h"
@@ -46,49 +52,41 @@
 #include "Core/NetPlayClient.h"
 #include "Core/NetPlayProto.h"
 #include "Core/NetPlayServer.h"
-#include "Core/ConfigManager.h"
-#include "Core/Config/WiimoteSettings.h"
-#include "Core/Config/UISettings.h"
-#include "Core/Boot/Boot.h"
-#include "Core/BootManager.h"
-#include "Core/System.h"
-#include "Core/WiiRoot.h"
-#include "Core/CommonTitles.h"
-#include "Core/Config/AchievementSettings.h"
-#include "Core/AchievementManager.h"
 #include "Core/PowerPC/PowerPC.h"
+#include "Core/System.h"
+#include "Core/TitleDatabase.h"
+#include "Core/WiiRoot.h"
 
-#include "rcheevos/include/rc_runtime.h"
-#include "rcheevos/include/rc_error.h"
-#include "rcheevos/include/rc_client.h"
+#include <rcheevos/include/rc_client_raintegration.h>
+#include "rcheevos/include/rc_api_info.h"
 #include "rcheevos/include/rc_api_runtime.h"
 #include "rcheevos/include/rc_api_user.h"
-#include "rcheevos/include/rc_api_info.h"
+#include "rcheevos/include/rc_client.h"
+#include "rcheevos/include/rc_error.h"
 #include "rcheevos/include/rc_hash.h"
-#include <rcheevos/include/rc_client_raintegration.h>
+#include "rcheevos/include/rc_runtime.h"
 
 #include "Common/CommonPaths.h"
+#include "Common/FileSearch.h"
 #include "Common/FileUtil.h"
 #include "Common/Image.h"
 #include "Common/Timer.h"
-#include "Common/FileSearch.h"
 
-#include "UICommon/UICommon.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/GameFileCache.h"
+#include "UICommon/UICommon.h"
 
-#include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/AbstractGfx.h"
-#include "VideoCommon/Present.h"
 #include "VideoCommon/OnScreenUI.h"
+#include "VideoCommon/Present.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 
-#include "InputCommon/InputConfig.h"
-#include "InputCommon/ControllerInterface/WGInput/WGInput.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
 #include "InputCommon/ControllerInterface/MappingCommon.h"
+#include "InputCommon/ControllerInterface/WGInput/WGInput.h"
+#include "InputCommon/InputConfig.h"
 
 #include "AudioCommon/AudioCommon.h"
 #include "AudioCommon/Enums.h"
@@ -105,7 +103,8 @@ void OnHardcoreChangedStatic()
     Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
 }
 
-namespace ImGuiFrontend {
+namespace ImGuiFrontend
+{
 
 constexpr const char* PROFILES_DIR = "Profiles/";
 std::vector<std::string> m_wiimote_profiles;
@@ -127,7 +126,7 @@ ImGuiFrontend::ImGuiFrontend()
   {
     WindowSystemInfo wsi;
 
-  #ifdef WINRT_XBOX
+#ifdef WINRT_XBOX
     // To-Do: Handle other platforms, extract this code so it can be done by the host!
 
     CoreWindow window = CoreWindow::GetForCurrentThread();
@@ -149,14 +148,14 @@ ImGuiFrontend::ImGuiFrontend()
         constexpr float frontend_modifier = 1.8f;
         uint32_t width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
 
-        m_frame_scale = ((float) width / 1920.0f) * frontend_modifier;
+        m_frame_scale = ((float)width / 1920.0f) * frontend_modifier;
         wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
         wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
         // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
-        wsi.render_surface_scale = ((float) wsi.render_width / 1920.0f) * 1.8f;
+        wsi.render_surface_scale = ((float)wsi.render_width / 1920.0f) * 1.8f;
       }
     }
-  #endif
+#endif
 
     // Manually reactivate the video backend in case a GameINI overrides the video backend setting.
     VideoBackendBase::PopulateBackendInfo(wsi);
@@ -172,7 +171,7 @@ ImGuiFrontend::ImGuiFrontend()
     }
   }
 
- ImGuiIO& io = ImGui::GetIO();
+  ImGuiIO& io = ImGui::GetIO();
 
   io.AddKeyEvent(ImGuiKey_Backspace, true);  // When key is pressed
 
@@ -213,22 +212,20 @@ ImGuiFrontend::ImGuiFrontend()
   LoadGameList();
   LoadThemes();
 
-  #ifdef USE_RETRO_ACHIEVEMENTS
+#ifdef USE_RETRO_ACHIEVEMENTS
   // ImGui doesn't have a window handle, so pass nullptr
   AchievementManager::GetInstance().Init(nullptr);
   // Disable debug mode if hardcore is active
   if (AchievementManager::GetInstance().IsHardcoreModeActive())
     Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
   // Listen for config changes to RA_ENABLED or RA_HARDCORE_ENABLED
-  Config::AddConfigChangedCallback([]() {
-    OnHardcoreChangedStatic();
-  });
+  Config::AddConfigChangedCallback([]() { OnHardcoreChangedStatic(); });
   // If hardcore is enabled at startup, ensure we react
   if (Config::Get(Config::RA_HARDCORE_ENABLED))
     OnHardcoreChangedStatic();
 #endif  // USE_RETRO_ACHIEVEMENTS
 
-  m_ccat = (CarouselCategory) Config::Get(Config::FRONTEND_LAST_CATEGORY);
+  m_ccat = (CarouselCategory)Config::Get(Config::FRONTEND_LAST_CATEGORY);
   m_last_category = m_ccat;
   FilterGamesForCategory();
 
@@ -294,7 +291,9 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
       {
         if (!m_direction_pressed)
         {
-          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_displayed_games.size()) - 1 ? 0 : m_selectedGameIdx + 1;
+          m_selectedGameIdx = m_selectedGameIdx >= static_cast<int>(m_displayed_games.size()) - 1 ?
+                                  0 :
+                                  m_selectedGameIdx + 1;
           m_direction_pressed = true;
           break;
         }
@@ -333,11 +332,11 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
         {
           if (!m_state.showListView && !m_state.showSettingsWindow && g_netplay_dialog == nullptr)
           {
-            int idx = -1 + (int) m_ccat;
+            int idx = -1 + (int)m_ccat;
             if (idx < 1)
-              idx = -1 + (int) CCount;
+              idx = -1 + (int)CCount;
 
-            m_ccat = (CarouselCategory) idx;
+            m_ccat = (CarouselCategory)idx;
           }
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
@@ -352,11 +351,11 @@ void ImGuiFrontend::RefreshControls(bool updateGameSelection)
         {
           if (!m_state.showListView && !m_state.showSettingsWindow && g_netplay_dialog == nullptr)
           {
-            int idx = 1 + (int) m_ccat;
+            int idx = 1 + (int)m_ccat;
             if (idx >= CCount)
               idx = 1;
 
-            m_ccat = (CarouselCategory) idx;
+            m_ccat = (CarouselCategory)idx;
           }
 
           m_scroll_last = std::chrono::high_resolution_clock::now();
@@ -592,8 +591,8 @@ FrontendResult ImGuiFrontend::RunMainLoop()
       selection = CreateMainPage();
       if (selection.game_result != nullptr)
       {
-        Config::SetBase(Config::FRONTEND_LAST_GAME, (int) m_selectedGameIdx);
-        Config::SetBase(Config::FRONTEND_LAST_CATEGORY, (int) m_ccat);
+        Config::SetBase(Config::FRONTEND_LAST_GAME, (int)m_selectedGameIdx);
+        Config::SetBase(Config::FRONTEND_LAST_CATEGORY, (int)m_ccat);
         Config::Save();
 
         break;
@@ -614,8 +613,9 @@ FrontendResult ImGuiFrontend::RunMainLoop()
   ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x / 2 - (100 / 2) * m_frame_scale,
                                  ImGui::GetIO().DisplaySize.y / 2 - (50 / 2) * m_frame_scale));
   if (ImGui::Begin("Loading..", nullptr,
-                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
-                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize))
+                   ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+                       ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar |
+                       ImGuiWindowFlags_AlwaysAutoResize))
   {
     ImGui::Text("Loading..");
     ImGui::End();
@@ -652,8 +652,8 @@ void CreateGeneralTab(UIState* state)
   bool changeDiscs = Config::Get(Config::MAIN_AUTO_DISC_CHANGE);
   if (ImGui::Checkbox("Change Discs Automatically", &changeDiscs))
   {
-      Config::SetBaseOrCurrent(Config::MAIN_AUTO_DISC_CHANGE, changeDiscs);
-      Config::Save();
+    Config::SetBaseOrCurrent(Config::MAIN_AUTO_DISC_CHANGE, changeDiscs);
+    Config::Save();
   }
 
   // Create a list of display strings (e.g., 0.1x to 2.0x in 0.1 increments)
@@ -739,7 +739,6 @@ void CreateInterfaceTab(UIState* state)
   }
 }
 
-
 void CreateGraphicsTab(UIState* state)
 {
   if (ImGui::TreeNode("General"))
@@ -750,7 +749,7 @@ void CreateGraphicsTab(UIState* state)
     {
       backend_names.push_back(backend->GetName());
     }
-    
+
     std::string current_backend = Config::Get(Config::MAIN_GFX_BACKEND);
     int current_backend_idx = 0;
     for (size_t i = 0; i < backend_names.size(); ++i)
@@ -762,11 +761,14 @@ void CreateGraphicsTab(UIState* state)
       }
     }
 
-    if (ImGui::Combo("Backend", &current_backend_idx, [](void* data, int idx, const char** out_text) {
-      auto* backends = static_cast<std::vector<std::string>*>(data);
-      *out_text = backends->at(idx).c_str();
-      return true;
-    }, &backend_names, static_cast<int>(backend_names.size())))
+    if (ImGui::Combo(
+            "Backend", &current_backend_idx,
+            [](void* data, int idx, const char** out_text) {
+              auto* backends = static_cast<std::vector<std::string>*>(data);
+              *out_text = backends->at(idx).c_str();
+              return true;
+            },
+            &backend_names, static_cast<int>(backend_names.size())))
     {
       Config::SetBaseOrCurrent(Config::MAIN_GFX_BACKEND, backend_names[current_backend_idx]);
       Config::Save();
@@ -867,7 +869,8 @@ void CreateGraphicsTab(UIState* state)
       break;
     }
 
-    if (ImGui::Combo("Shader Compilation Mode", &shader_idx, shader_items, IM_ARRAYSIZE(shader_items)))
+    if (ImGui::Combo("Shader Compilation Mode", &shader_idx, shader_items,
+                     IM_ARRAYSIZE(shader_items)))
     {
       switch (shader_idx)
       {
@@ -937,40 +940,46 @@ void CreateGraphicsTab(UIState* state)
       Config::SetBaseOrCurrent(Config::GFX_ENHANCE_FORCE_TRUE_COLOR, forceTrueColor);
       Config::Save();
     }
-    
+
     bool arbitraryMipmapDetection = Config::Get(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION);
     if (ImGui::Checkbox("Arbitrary Mipmap Detection", &arbitraryMipmapDetection))
     {
-      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION, arbitraryMipmapDetection);
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION,
+                               arbitraryMipmapDetection);
       Config::Save();
     }
-    
+
     if (arbitraryMipmapDetection)
     {
       float threshold = Config::Get(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD);
       if (ImGui::SliderFloat("Mipmap Detection Threshold", &threshold, 1.0f, 50.0f, "%.1f"))
       {
-        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD, threshold);
+        Config::SetBaseOrCurrent(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD,
+                                 threshold);
         Config::Save();
       }
-      ImGui::TextWrapped("Adjusts the threshold for detecting arbitrary mipmaps. Higher values increase detection sensitivity but may cause false positives.");
+      ImGui::TextWrapped("Adjusts the threshold for detecting arbitrary mipmaps. Higher values "
+                         "increase detection sensitivity but may cause false positives.");
     }
-   
-    #ifndef WINRT_XBOX // I don't have a hdr impl yet for UWP.
+
+#ifndef WINRT_XBOX  // I don't have a hdr impl yet for UWP.
     bool hdrOutput = Config::Get(Config::GFX_ENHANCE_HDR_OUTPUT);
     if (ImGui::Checkbox("HDR Output", &hdrOutput))
     {
       Config::SetBaseOrCurrent(Config::GFX_ENHANCE_HDR_OUTPUT, hdrOutput);
       Config::Save();
     }
-    ImGui::TextWrapped("Enables HDR output when supported by the display. Requires a compatible GPU and display.");
-    #endif
+    ImGui::TextWrapped(
+        "Enables HDR output when supported by the display. Requires a compatible GPU and display.");
+#endif
     const char* anisolevel_items[] = {"1x", "2x", "4x", "8x", "16x"};
     auto aniso = Config::Get(Config::GFX_ENHANCE_MAX_ANISOTROPY);
     int aniso_idx = static_cast<int>(aniso);
-    if (ImGui::Combo("Anisotropic Filtering", &aniso_idx, anisolevel_items, IM_ARRAYSIZE(anisolevel_items)))
+    if (ImGui::Combo("Anisotropic Filtering", &aniso_idx, anisolevel_items,
+                     IM_ARRAYSIZE(anisolevel_items)))
     {
-      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, static_cast<AnisotropicFilteringMode>(aniso_idx));
+      Config::SetBaseOrCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY,
+                               static_cast<AnisotropicFilteringMode>(aniso_idx));
       Config::Save();
     }
 
@@ -1037,13 +1046,13 @@ void CreateGraphicsTab(UIState* state)
     if (ImGui::TreeNode("Texture Cache"))
     {
       int accuracy = Config::Get(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES);
-      
+
       int slider_index = 0;
       if (accuracy == 512)
         slider_index = 1;
       else if (accuracy == 128)
         slider_index = 2;
-      
+
       const char* accuracy_labels[] = {"Safe (0)", "Normal (512)", "Fast (128)"};
       if (ImGui::Combo("Texture Cache Accuracy", &slider_index, accuracy_labels, 3))
       {
@@ -1052,7 +1061,7 @@ void CreateGraphicsTab(UIState* state)
           new_accuracy = 512;
         else if (slider_index == 2)
           new_accuracy = 128;
-          
+
         Config::SetBaseOrCurrent(Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES, new_accuracy);
         Config::Save();
       }
@@ -1279,12 +1288,16 @@ void CreateGraphicsTab(UIState* state)
 
     if (ImGui::TreeNode("Frame Dumping"))
     {
-      const char* resolution_items[] = {"Window Resolution", "Aspect Ratio Corrected Internal Resolution", "Raw Internal Resolution"};
+      const char* resolution_items[] = {"Window Resolution",
+                                        "Aspect Ratio Corrected Internal Resolution",
+                                        "Raw Internal Resolution"};
       auto resolution_type = Config::Get(Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE);
       int resolution_idx = static_cast<int>(resolution_type);
-      if (ImGui::Combo("Resolution Type", &resolution_idx, resolution_items, IM_ARRAYSIZE(resolution_items)))
+      if (ImGui::Combo("Resolution Type", &resolution_idx, resolution_items,
+                       IM_ARRAYSIZE(resolution_items)))
       {
-        Config::SetBaseOrCurrent(Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE, static_cast<FrameDumpResolutionType>(resolution_idx));
+        Config::SetBaseOrCurrent(Config::GFX_FRAME_DUMPS_RESOLUTION_TYPE,
+                                 static_cast<FrameDumpResolutionType>(resolution_idx));
         Config::Save();
       }
 
@@ -1307,19 +1320,20 @@ void CreateGraphicsTab(UIState* state)
         Config::Save();
       }
 
-      #ifndef WINRT_XBOX // This currently only works on the Vulkan backend
+#ifndef WINRT_XBOX  // This currently only works on the Vulkan backend
       bool backendMultithreading = Config::Get(Config::GFX_BACKEND_MULTITHREADING);
       if (ImGui::Checkbox("Backend Multithreading", &backendMultithreading))
       {
         Config::SetBaseOrCurrent(Config::GFX_BACKEND_MULTITHREADING, backendMultithreading);
         Config::Save();
       }
-      #endif
+#endif
 
       bool preferVsForLinePoint = Config::Get(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION);
       if (ImGui::Checkbox("Prefer VS for Point/Line Expansion", &preferVsForLinePoint))
       {
-        Config::SetBaseOrCurrent(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION, preferVsForLinePoint);
+        Config::SetBaseOrCurrent(Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION,
+                                 preferVsForLinePoint);
         Config::Save();
       }
 
@@ -1395,8 +1409,8 @@ void CreateGameCubeTab(UIState* state)
       ImGui::PushID(i);
       if (ImGui::RadioButton(language_items[i], i == lang))
       {
-          Config::SetBaseOrCurrent(Config::MAIN_GC_LANGUAGE, i);
-          Config::Save();
+        Config::SetBaseOrCurrent(Config::MAIN_GC_LANGUAGE, i);
+        Config::Save();
       }
       ImGui::PopID();
     }
@@ -1430,11 +1444,19 @@ void CreateGameCubeTab(UIState* state)
   {
     auto has_ipl = [](DiscIO::Region region) {
       std::string region_dir;
-      switch (region) {
-        case DiscIO::Region::NTSC_J: region_dir = "JAP"; break;
-        case DiscIO::Region::NTSC_U: region_dir = "USA"; break;
-        case DiscIO::Region::PAL: region_dir = "EUR"; break;
-        default: return false;
+      switch (region)
+      {
+      case DiscIO::Region::NTSC_J:
+        region_dir = "JAP";
+        break;
+      case DiscIO::Region::NTSC_U:
+        region_dir = "USA";
+        break;
+      case DiscIO::Region::PAL:
+        region_dir = "EUR";
+        break;
+      default:
+        return false;
       }
       return File::Exists(File::GetUserPath(D_GCUSER_IDX) + "/" + region_dir + "/" + GC_IPL) ||
              File::Exists(File::GetSysDirectory() + GC_SYS_DIR + "/" + region_dir + "/" + GC_IPL);
@@ -1447,7 +1469,6 @@ void CreateGameCubeTab(UIState* state)
                             WindowSystemInfo());
       state->controlsDisabled = false;
     };
-
 
     bool any = false;
     if (has_ipl(DiscIO::Region::NTSC_J))
@@ -1501,15 +1522,13 @@ void CreateGameCubeTab(UIState* state)
 
     if (ImGui::RadioButton("Dummy", slot1 == ExpansionInterface::EXIDeviceType::Dummy))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A,
-                               ExpansionInterface::EXIDeviceType::Dummy);
+      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A, ExpansionInterface::EXIDeviceType::Dummy);
       Config::Save();
     }
 
     if (ImGui::RadioButton("Memory Card", slot1 == ExpansionInterface::EXIDeviceType::MemoryCard))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A,
-                               ExpansionInterface::EXIDeviceType::MemoryCard);
+      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A, ExpansionInterface::EXIDeviceType::MemoryCard);
       Config::Save();
     }
 
@@ -1523,8 +1542,7 @@ void CreateGameCubeTab(UIState* state)
 
     if (ImGui::RadioButton("USB Gecko", slot1 == ExpansionInterface::EXIDeviceType::Gecko))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A,
-                               ExpansionInterface::EXIDeviceType::Gecko);
+      Config::SetBaseOrCurrent(Config::MAIN_SLOT_A, ExpansionInterface::EXIDeviceType::Gecko);
       Config::Save();
     }
 
@@ -1593,11 +1611,13 @@ void CreateGameCubeTab(UIState* state)
 
     if (ImGui::RadioButton("Dummy", sp1 == ExpansionInterface::EXIDeviceType::Dummy))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_SERIAL_PORT_1, ExpansionInterface::EXIDeviceType::Dummy);
+      Config::SetBaseOrCurrent(Config::MAIN_SERIAL_PORT_1,
+                               ExpansionInterface::EXIDeviceType::Dummy);
       Config::Save();
     }
 
-    if (ImGui::RadioButton("Broadband Adapter (TAP)", sp1 == ExpansionInterface::EXIDeviceType::Ethernet))
+    if (ImGui::RadioButton("Broadband Adapter (TAP)",
+                           sp1 == ExpansionInterface::EXIDeviceType::Ethernet))
     {
       Config::SetBaseOrCurrent(Config::MAIN_SERIAL_PORT_1,
                                ExpansionInterface::EXIDeviceType::Ethernet);
@@ -1634,7 +1654,8 @@ void CreateWiiTab(UIState* state)
     state->showSettingsWindow = false;
     Core::Stop(Core::System::GetInstance());
     Core::Shutdown(Core::System::GetInstance());
-    auto boot_params = std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU});
+    auto boot_params =
+        std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU});
     BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), WindowSystemInfo());
     state->controlsDisabled = false;
     s_booted_wii_menu = false;
@@ -1657,8 +1678,14 @@ void CreateWiiTab(UIState* state)
   }
   ImGui::TextWrapped("Enables WiiConnect24 features via WiiLink, such as the Wii Mail service.");
 
-  const char* language_items[] = {"Japanese", "English", "German", "French",
-                                  "Spanish",  "Italian", "Dutch",  "Simplified Chinese",
+  const char* language_items[] = {"Japanese",
+                                  "English",
+                                  "German",
+                                  "French",
+                                  "Spanish",
+                                  "Italian",
+                                  "Dutch",
+                                  "Simplified Chinese",
                                   "Traditional Chinese",
                                   "Korean"};
   auto lang = Config::Get(Config::SYSCONF_LANGUAGE);
@@ -1670,8 +1697,8 @@ void CreateWiiTab(UIState* state)
       ImGui::PushID(i);
       if (ImGui::RadioButton(language_items[i], i == lang))
       {
-          Config::SetBaseOrCurrent(Config::SYSCONF_LANGUAGE, i);
-          Config::Save();
+        Config::SetBaseOrCurrent(Config::SYSCONF_LANGUAGE, i);
+        Config::Save();
       }
       ImGui::PopID();
     }
@@ -1689,8 +1716,8 @@ void CreateWiiTab(UIState* state)
       ImGui::PushID(i);
       if (ImGui::RadioButton(sound_items[i], i == sound))
       {
-          Config::SetBaseOrCurrent(Config::SYSCONF_SOUND_MODE, i);
-          Config::Save();
+        Config::SetBaseOrCurrent(Config::SYSCONF_SOUND_MODE, i);
+        Config::Save();
       }
       ImGui::PopID();
     }
@@ -1718,7 +1745,8 @@ void CreateWiiTab(UIState* state)
     std::string sd_card_path = Config::Get(Config::MAIN_WII_SD_CARD_IMAGE_PATH);
     char sd_card_path_buf[256];
     strncpy(sd_card_path_buf, sd_card_path.c_str(), sizeof(sd_card_path_buf));
-    ImGui::InputText("SD Card Path", sd_card_path_buf, sizeof(sd_card_path_buf), ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("SD Card Path", sd_card_path_buf, sizeof(sd_card_path_buf),
+                     ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
     if (ImGui::Button("Browse##SDCard"))
     {
@@ -1733,12 +1761,14 @@ void CreateWiiTab(UIState* state)
       Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC, sync_sd_folder);
       Config::Save();
     }
-    ImGui::TextWrapped("Synchronizes the SD Card with the SD Sync Folder when starting and ending emulation.");
+    ImGui::TextWrapped(
+        "Synchronizes the SD Card with the SD Sync Folder when starting and ending emulation.");
 
     std::string sd_sync_folder = Config::Get(Config::MAIN_WII_SD_CARD_SYNC_FOLDER_PATH);
     char sd_sync_folder_buf[256];
     strncpy(sd_sync_folder_buf, sd_sync_folder.c_str(), sizeof(sd_sync_folder_buf));
-    ImGui::InputText("SD Sync Folder", sd_sync_folder_buf, sizeof(sd_sync_folder_buf), ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("SD Sync Folder", sd_sync_folder_buf, sizeof(sd_sync_folder_buf),
+                     ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
     if (ImGui::Button("Browse##SDSync"))
     {
@@ -1753,7 +1783,8 @@ void CreateWiiTab(UIState* state)
       });
     }
 
-    const char* sd_size_items[] = {"128 MB", "256 MB", "512 MB", "1 GB", "2 GB", "4 GB", "8 GB", "16 GB", "32 GB"};
+    const char* sd_size_items[] = {"128 MB", "256 MB", "512 MB", "1 GB", "2 GB",
+                                   "4 GB",   "8 GB",   "16 GB",  "32 GB"};
     u64 sd_size = Config::Get(Config::MAIN_WII_SD_CARD_FILESIZE);
     int sd_size_index = 0;
     for (size_t i = 0; i < IM_ARRAYSIZE(sd_size_items); ++i)
@@ -1764,9 +1795,11 @@ void CreateWiiTab(UIState* state)
         break;
       }
     }
-    if (ImGui::Combo("SD Card File Size", &sd_size_index, sd_size_items, IM_ARRAYSIZE(sd_size_items)))
+    if (ImGui::Combo("SD Card File Size", &sd_size_index, sd_size_items,
+                     IM_ARRAYSIZE(sd_size_items)))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_FILESIZE, (128 * 1024 * 1024) * (1ULL << sd_size_index));
+      Config::SetBaseOrCurrent(Config::MAIN_WII_SD_CARD_FILESIZE,
+                               (128 * 1024 * 1024) * (1ULL << sd_size_index));
       Config::Save();
     }
 
@@ -1784,7 +1817,8 @@ void CreateWiiTab(UIState* state)
 
     const char* sensor_position_items[] = {"Top", "Bottom"};
     int sensor_position = Config::Get(Config::SYSCONF_SENSOR_BAR_POSITION);
-    if (ImGui::Combo("Sensor Bar Position", &sensor_position, sensor_position_items, IM_ARRAYSIZE(sensor_position_items)))
+    if (ImGui::Combo("Sensor Bar Position", &sensor_position, sensor_position_items,
+                     IM_ARRAYSIZE(sensor_position_items)))
     {
       Config::SetBaseOrCurrent(Config::SYSCONF_SENSOR_BAR_POSITION, sensor_position);
       Config::Save();
@@ -1816,18 +1850,24 @@ void CreateAdvancedTab(UIState* state)
     // Only show available cores for Xbox
     // Enum values: Interpreter=0, JIT64=1, CachedInterpreter=5
     const char* cpu_cores[] = {"Interpreter", "JIT64", "Cached Interpreter"};
-    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter, PowerPC::CPUCore::JIT64, PowerPC::CPUCore::CachedInterpreter};
+    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter,
+                                                PowerPC::CPUCore::JIT64,
+                                                PowerPC::CPUCore::CachedInterpreter};
     const int cpu_cores_count = 3;
 #else
     // Enum values: Interpreter=0, JIT64=1, JITARM64=4, CachedInterpreter=5
     const char* cpu_cores[] = {"Interpreter", "JIT64", "JITARM64", "Cached Interpreter"};
-    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter, PowerPC::CPUCore::JIT64, PowerPC::CPUCore::JITARM64, PowerPC::CPUCore::CachedInterpreter};
+    const PowerPC::CPUCore cpu_core_values[] = {PowerPC::CPUCore::Interpreter,
+                                                PowerPC::CPUCore::JIT64, PowerPC::CPUCore::JITARM64,
+                                                PowerPC::CPUCore::CachedInterpreter};
     const int cpu_cores_count = 4;
 #endif
     PowerPC::CPUCore config_core = Config::Get(Config::MAIN_CPU_CORE);
     int combo_index = 0;
-    for (int i = 0; i < cpu_cores_count; ++i) {
-      if (cpu_core_values[i] == config_core) {
+    for (int i = 0; i < cpu_cores_count; ++i)
+    {
+      if (cpu_core_values[i] == config_core)
+      {
         combo_index = i;
         break;
       }
@@ -1847,7 +1887,8 @@ void CreateAdvancedTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_MMU, mmuEnable);
     Config::Save();
   }
-  ImGui::TextWrapped("Enables the Memory Management Unit, needed for some games. (ON = Compatible, OFF = Fast)\n\nIf unsure, leave this unchecked.");
+  ImGui::TextWrapped("Enables the Memory Management Unit, needed for some games. (ON = Compatible, "
+                     "OFF = Fast)\n\nIf unsure, leave this unchecked.");
 
   bool pauseOnPanic = Config::Get(Config::MAIN_PAUSE_ON_PANIC);
   if (ImGui::Checkbox("Pause on Panic", &pauseOnPanic))
@@ -1855,7 +1896,9 @@ void CreateAdvancedTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_PAUSE_ON_PANIC, pauseOnPanic);
     Config::Save();
   }
-  ImGui::TextWrapped("Pauses the emulation if a Read/Write or Unknown Instruction panic occurs.\nEnabling will affect performance.\nThe performance impact is the same as having Enable MMU on.\n\nIf unsure, leave this unchecked.");
+  ImGui::TextWrapped("Pauses the emulation if a Read/Write or Unknown Instruction panic "
+                     "occurs.\nEnabling will affect performance.\nThe performance impact is the "
+                     "same as having Enable MMU on.\n\nIf unsure, leave this unchecked.");
 
   bool accurateCPUCache = Config::Get(Config::MAIN_ACCURATE_CPU_CACHE);
   if (ImGui::Checkbox("Enable Write-Back Cache (slow)", &accurateCPUCache))
@@ -1863,7 +1906,9 @@ void CreateAdvancedTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_ACCURATE_CPU_CACHE, accurateCPUCache);
     Config::Save();
   }
-  ImGui::TextWrapped("Enables emulation of the CPU write-back cache.\nEnabling will have a significant impact on performance.\nThis should be left disabled unless absolutely needed.\n\nIf unsure, leave this unchecked.");
+  ImGui::TextWrapped("Enables emulation of the CPU write-back cache.\nEnabling will have a "
+                     "significant impact on performance.\nThis should be left disabled unless "
+                     "absolutely needed.\n\nIf unsure, leave this unchecked.");
 
   bool syncOnSkipIdle = Config::Get(Config::MAIN_SYNC_ON_SKIP_IDLE);
   if (ImGui::Checkbox("Sync on Skip Idle", &syncOnSkipIdle))
@@ -1871,7 +1916,9 @@ void CreateAdvancedTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_SYNC_ON_SKIP_IDLE, syncOnSkipIdle);
     Config::Save();
   }
-  ImGui::TextWrapped("Synchronizes the GPU thread with the CPU thread when the CPU is idle.\nThis helps prevent desynchronization between the CPU and GPU, which can cause visual glitches or crashes.\n\nIf unsure, leave this checked.");
+  ImGui::TextWrapped("Synchronizes the GPU thread with the CPU thread when the CPU is idle.\nThis "
+                     "helps prevent desynchronization between the CPU and GPU, which can cause "
+                     "visual glitches or crashes.\n\nIf unsure, leave this checked.");
 
   bool emulateDiscSpeed = !Config::Get(Config::MAIN_FAST_DISC_SPEED);
   if (ImGui::Checkbox("Emulate Disc Speed", &emulateDiscSpeed))
@@ -1879,11 +1926,16 @@ void CreateAdvancedTab(UIState* state)
     Config::SetBaseOrCurrent(Config::MAIN_FAST_DISC_SPEED, !emulateDiscSpeed);
     Config::Save();
   }
-  ImGui::TextWrapped("When checked, the emulator uses normal disc speed (ON = Stock, OFF = Fast).\nDisabling emulation accelerates the disc transfer rate, removing loading times but may cause issues with games that rely on precise timing.\n\nIf unsure, leave this checked.");
+  ImGui::TextWrapped(
+      "When checked, the emulator uses normal disc speed (ON = Stock, OFF = Fast).\nDisabling "
+      "emulation accelerates the disc transfer rate, removing loading times but may cause issues "
+      "with games that rely on precise timing.\n\nIf unsure, leave this checked.");
 
   if (ImGui::TreeNode("Clock Override"))
   {
-    ImGui::Text("WARNING: Changing this from the default (1.0 = 100%) can and will break\ngames and cause glitches. Do so at your own risk. \nPlease do not report bugs that occur with a non-default clock. \nThis is not a magical performance slider!");
+    ImGui::Text("WARNING: Changing this from the default (1.0 = 100%) can and will break\ngames "
+                "and cause glitches. Do so at your own risk. \nPlease do not report bugs that "
+                "occur with a non-default clock. \nThis is not a magical performance slider!");
 
     bool overclockEnable = Config::Get(Config::MAIN_OVERCLOCK_ENABLE);
     if (ImGui::Checkbox("Enable Emulated CPU Clock Override", &overclockEnable))
@@ -1913,14 +1965,14 @@ void CreateAdvancedTab(UIState* state)
 
     if (ramOverrideEnable)
     {
-      u32 mem1Size = Config::Get(Config::MAIN_MEM1_SIZE) / 0x100000; // Convert to MB
+      u32 mem1Size = Config::Get(Config::MAIN_MEM1_SIZE) / 0x100000;  // Convert to MB
       if (ImGui::SliderInt("MEM1 Size (MB)", (int*)&mem1Size, 24, 64))
       {
         Config::SetBaseOrCurrent(Config::MAIN_MEM1_SIZE, mem1Size * 0x100000);
         Config::Save();
       }
 
-      u32 mem2Size = Config::Get(Config::MAIN_MEM2_SIZE) / 0x100000; // Convert to MB
+      u32 mem2Size = Config::Get(Config::MAIN_MEM2_SIZE) / 0x100000;  // Convert to MB
       if (ImGui::SliderInt("MEM2 Size (MB)", (int*)&mem2Size, 64, 128))
       {
         Config::SetBaseOrCurrent(Config::MAIN_MEM2_SIZE, mem2Size * 0x100000);
@@ -1928,9 +1980,10 @@ void CreateAdvancedTab(UIState* state)
       }
     }
 
-    ImGui::TextWrapped("Adjusts the amount of RAM in the emulated console.\n\n"
-                      "WARNING: Enabling this will completely break many games. Only a small number "
-                      "of games can benefit from this.");
+    ImGui::TextWrapped(
+        "Adjusts the amount of RAM in the emulated console.\n\n"
+        "WARNING: Enabling this will completely break many games. Only a small number "
+        "of games can benefit from this.");
 
     ImGui::TreePop();
   }
@@ -1950,7 +2003,7 @@ void CreateAdvancedTab(UIState* state)
       u64 customRTC = Config::Get(Config::MAIN_CUSTOM_RTC_VALUE);
       time_t current_time = customRTC;
       struct tm* timeinfo = gmtime(&current_time);
-      
+
       // Create a date/time picker
       int year = timeinfo->tm_year + 1900;
       int month = timeinfo->tm_mon + 1;
@@ -1996,7 +2049,8 @@ void CreateAdvancedTab(UIState* state)
       }
     }
 
-    ImGui::TextWrapped("This setting allows you to set a custom real time clock (RTC) separate from your current system time.\n\nIf unsure, leave this unchecked.");
+    ImGui::TextWrapped("This setting allows you to set a custom real time clock (RTC) separate "
+                       "from your current system time.\n\nIf unsure, leave this unchecked.");
 
     ImGui::TreePop();
   }
@@ -2005,7 +2059,8 @@ void CreateAdvancedTab(UIState* state)
 void CreatePathsTab(UIState* state)
 {
   ImGui::Text("Game Folders");
-  if (ImGui::BeginListBox("##folders")) {
+  if (ImGui::BeginListBox("##folders"))
+  {
     for (auto path : m_paths)
     {
       if (ImGui::Selectable(path.c_str()))
@@ -2138,9 +2193,9 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
       {
         if (ImGui::Selectable(device.c_str(), strcmp(default_device.c_str(), device.c_str()) == 0))
         {
-            controller->SetDefaultDevice(device);
-            controller->UpdateReferences(g_controller_interface);
-            Wiimote::GetConfig()->SaveConfig();
+          controller->SetDefaultDevice(device);
+          controller->UpdateReferences(g_controller_interface);
+          Wiimote::GetConfig()->SaveConfig();
         }
       }
 
@@ -2153,57 +2208,58 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
       {
         if (ImGui::Selectable(profile.c_str(), m_selected_wiimote_profile[index] == profile))
         {
-            m_selected_wiimote_profile[index] = profile;
+          m_selected_wiimote_profile[index] = profile;
 
-            if (m_selected_wiimote_profile[index] == "None")
-            {
-              // Loading an empty inifile section clears everything.
-              Common::IniFile::Section sec;
+          if (m_selected_wiimote_profile[index] == "None")
+          {
+            // Loading an empty inifile section clears everything.
+            Common::IniFile::Section sec;
 
-              controller->LoadConfig(&sec);
-              controller->SetDefaultDevice(default_device);
-              Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index), WiimoteSource::None);
-            }
-            else if (m_selected_wiimote_profile[index] == "Wiimote + Nunchuk")
-            {
-              controller->LoadDefaults(g_controller_interface);
+            controller->LoadConfig(&sec);
+            controller->SetDefaultDevice(default_device);
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index), WiimoteSource::None);
+          }
+          else if (m_selected_wiimote_profile[index] == "Wiimote + Nunchuk")
+          {
+            controller->LoadDefaults(g_controller_interface);
 
-              Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index), WiimoteSource::Emulated);
-            }
-            else if (m_selected_wiimote_profile[index] == "Classic Controller")
-            { 
-              Common::IniFile ini;
-              ini.Load(File::GetSysDirectory() + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/Classic.ini");
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
+                                     WiimoteSource::Emulated);
+          }
+          else if (m_selected_wiimote_profile[index] == "Classic Controller")
+          {
+            Common::IniFile ini;
+            ini.Load(File::GetSysDirectory() + PROFILES_DIR +
+                     Wiimote::GetConfig()->GetProfileDirectoryName() + "/Classic.ini");
 
-              controller->LoadConfig(ini.GetOrCreateSection("Profile"));
-              Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
-                                       WiimoteSource::Emulated);
-            }
-            else if (m_selected_wiimote_profile[index] == "Sideways Wiimote")
-            { 
-              Common::IniFile ini;
-              ini.Load(File::GetSysDirectory() + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/Sideways.ini");
+            controller->LoadConfig(ini.GetOrCreateSection("Profile"));
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
+                                     WiimoteSource::Emulated);
+          }
+          else if (m_selected_wiimote_profile[index] == "Sideways Wiimote")
+          {
+            Common::IniFile ini;
+            ini.Load(File::GetSysDirectory() + PROFILES_DIR +
+                     Wiimote::GetConfig()->GetProfileDirectoryName() + "/Sideways.ini");
 
-              controller->LoadConfig(ini.GetOrCreateSection("Profile"));
-              Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
-                                       WiimoteSource::Emulated);
-            }
-            else
-            {
-              Common::IniFile ini;
-              ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
-                       Wiimote::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
+            controller->LoadConfig(ini.GetOrCreateSection("Profile"));
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
+                                     WiimoteSource::Emulated);
+          }
+          else
+          {
+            Common::IniFile ini;
+            ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
+                     Wiimote::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
 
-              controller->LoadConfig(ini.GetOrCreateSection("Profile"));
-              Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
-                                       WiimoteSource::Emulated);
-            }
+            controller->LoadConfig(ini.GetOrCreateSection("Profile"));
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
+                                     WiimoteSource::Emulated);
+          }
 
-            controller->UpdateReferences(g_controller_interface);
-            Wiimote::GetConfig()->SaveConfig();
-            Config::Save();
+          controller->UpdateReferences(g_controller_interface);
+          Wiimote::GetConfig()->SaveConfig();
+          Config::Save();
         }
       }
 
@@ -2216,7 +2272,8 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
 
 void CreateGCPort(int index, std::vector<std::string> devices)
 {
-  if (ImGui::BeginChild(std::format("gc-port-{}", index).c_str(), ImVec2(-1, 75 * m_frame_scale), true))
+  if (ImGui::BeginChild(std::format("gc-port-{}", index).c_str(), ImVec2(-1, 75 * m_frame_scale),
+                        true))
   {
     auto controller = Pad::GetConfig()->GetController(index);
     auto default_device = controller->GetDefaultDevice().name;
@@ -2229,9 +2286,9 @@ void CreateGCPort(int index, std::vector<std::string> devices)
       {
         if (ImGui::Selectable(device.c_str(), strcmp(default_device.c_str(), device.c_str()) == 0))
         {
-            controller->SetDefaultDevice(device);
-            controller->UpdateReferences(g_controller_interface);
-            Pad::GetConfig()->SaveConfig();
+          controller->SetDefaultDevice(device);
+          controller->UpdateReferences(g_controller_interface);
+          Pad::GetConfig()->SaveConfig();
         }
       }
 
@@ -2244,37 +2301,37 @@ void CreateGCPort(int index, std::vector<std::string> devices)
       {
         if (ImGui::Selectable(profile.c_str(), m_selected_gc_profile[index] == profile))
         {
-            m_selected_gc_profile[index] = profile;
+          m_selected_gc_profile[index] = profile;
 
-            if (m_selected_gc_profile[index] == "None")
-            {
-              // Loading an empty inifile section clears everything.
-              Common::IniFile::Section sec;
-              controller->LoadConfig(&sec);
-              controller->SetDefaultDevice(default_device);
-              Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
-                                       SerialInterface::SIDevices::SIDEVICE_NONE);
-            }
-            else if (m_selected_gc_profile[index] == "Default")
-            {
-              controller->LoadDefaults(g_controller_interface);
-              Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
-                                       SerialInterface::SIDevices::SIDEVICE_GC_CONTROLLER);
-            }
-            else
-            {
-              Common::IniFile ini;
-              ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
-                       Pad::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
+          if (m_selected_gc_profile[index] == "None")
+          {
+            // Loading an empty inifile section clears everything.
+            Common::IniFile::Section sec;
+            controller->LoadConfig(&sec);
+            controller->SetDefaultDevice(default_device);
+            Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
+                                     SerialInterface::SIDevices::SIDEVICE_NONE);
+          }
+          else if (m_selected_gc_profile[index] == "Default")
+          {
+            controller->LoadDefaults(g_controller_interface);
+            Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
+                                     SerialInterface::SIDevices::SIDEVICE_GC_CONTROLLER);
+          }
+          else
+          {
+            Common::IniFile ini;
+            ini.Load(File::GetUserPath(D_CONFIG_IDX) + PROFILES_DIR +
+                     Pad::GetConfig()->GetProfileDirectoryName() + "/" + profile + ".ini");
 
-              controller->LoadConfig(ini.GetOrCreateSection("Profile"));
-              Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
-                                       SerialInterface::SIDevices::SIDEVICE_GC_CONTROLLER);
-            }
+            controller->LoadConfig(ini.GetOrCreateSection("Profile"));
+            Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
+                                     SerialInterface::SIDevices::SIDEVICE_GC_CONTROLLER);
+          }
 
-            controller->UpdateReferences(g_controller_interface);
-            Pad::GetConfig()->SaveConfig();
-            Config::Save();
+          controller->UpdateReferences(g_controller_interface);
+          Pad::GetConfig()->SaveConfig();
+          Config::Save();
         }
       }
 
@@ -2287,16 +2344,16 @@ void CreateGCPort(int index, std::vector<std::string> devices)
 
 FrontendResult ImGuiFrontend::CreateMainPage()
 {
-  //float selOffset = m_selectedGameIdx >= 5 ? 160.0f * (m_selectedGameIdx - 4) * -1.0f : 0;
+  // float selOffset = m_selectedGameIdx >= 5 ? 160.0f * (m_selectedGameIdx - 4) * -1.0f : 0;
   float posX = 30 * m_frame_scale;
   float posY = (345.0f / 2) * m_frame_scale;
   auto extraFlags = m_games.size() < 5 ? ImGuiWindowFlags_None :
                                          ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav;
 
   ImGui::SetNextWindowPos(ImVec2(posX, posY));
-  if (ImGui::Begin("Dolphin Emulator", nullptr, ImGuiWindowFlags_NoTitleBar |
-                       ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
-                       ImGuiWindowFlags_NoScrollbar |
+  if (ImGui::Begin("Dolphin Emulator", nullptr,
+                   ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+                       ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar |
                        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground |
                        extraFlags))
   {
@@ -2309,7 +2366,7 @@ FrontendResult ImGuiFrontend::CreateMainPage()
   }
 
   const u64 current_time_us = Common::Timer::NowUs();
-  const u64 time_diff_us = current_time_us -m_imgui_last_frame_time;
+  const u64 time_diff_us = current_time_us - m_imgui_last_frame_time;
   const float time_diff_secs = static_cast<float>(time_diff_us / 1000000.0);
   m_imgui_last_frame_time = current_time_us;
 
@@ -2317,7 +2374,7 @@ FrontendResult ImGuiFrontend::CreateMainPage()
   ImGuiIO& io = ImGui::GetIO();
   io.DeltaTime = time_diff_secs;
 
-  return FrontendResult(); // keep running
+  return FrontendResult();  // keep running
 }
 
 FrontendResult ImGuiFrontend::CreateListPage()
@@ -2370,16 +2427,16 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
         m_list_search_results.clear();
         for (auto& game : m_games)
         {
-            auto& name = game->GetName(m_title_database);
-            auto it = std::search(name.begin(), name.end(), search_phrase.begin(),
-                                  search_phrase.end(), [](unsigned char ch1, unsigned char ch2) {
-                                    return std::toupper(ch1) == std::toupper(ch2);
-                                  });
+          auto& name = game->GetName(m_title_database);
+          auto it = std::search(name.begin(), name.end(), search_phrase.begin(),
+                                search_phrase.end(), [](unsigned char ch1, unsigned char ch2) {
+                                  return std::toupper(ch1) == std::toupper(ch2);
+                                });
 
-            if (it != name.end())
-            {
-              m_list_search_results.push_back(game);
-            }
+          if (it != name.end())
+          {
+            m_list_search_results.push_back(game);
+          }
         }
 
         m_prev_list_search = m_list_search_buf;
@@ -2397,10 +2454,11 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameList()
                              .count();
     for (auto& game : games)
     {
-      if (ImGui::Selectable(std::format("{}##{}", game->GetName(m_title_database).c_str(), game->GetFilePath())
+      if (ImGui::Selectable(
+              std::format("{}##{}", game->GetName(m_title_database).c_str(), game->GetFilePath())
                   .c_str()) &&
           timeSinceInit > 1500)
-    {
+      {
         ImGui::EndListBox();
         return game;
       }
@@ -2485,13 +2543,15 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
     ImGui::SameLine();
     ImGui::BeginChild(
         m_displayed_games[idx]->GetFilePath().c_str(),
-        ImVec2((160 + 25) * m_frame_scale * selectedScale, 250 * m_frame_scale * selectedScale), true,
+        ImVec2((160 + 25) * m_frame_scale * selectedScale, 250 * m_frame_scale * selectedScale),
+        true,
         ImGuiWindowFlags_NavFlattened | ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar);
 
     if (handle != 0)
     {
-      ImGui::Image((ImTextureID) handle,
+      ImGui::Image(
+          (ImTextureID)handle,
           ImVec2(160.f * m_frame_scale * selectedScale, 224.f * m_frame_scale * selectedScale),
           ImVec2(0, 0), ImVec2(1, 1), ImVec4(1.0f, 1.0f, 1.0f, 1.0f), border_col);
       ImGui::Text(m_displayed_games[idx]->GetName(m_title_database).c_str());
@@ -2549,12 +2609,13 @@ std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is
     return {};
 
   int width, height, channels;
-  unsigned char* image_data = stbi_load_from_memory(buffer.data(), static_cast<int>(buffer.size()), 
-                                                   &width, &height, &channels, 4);
+  unsigned char* image_data = stbi_load_from_memory(buffer.data(), static_cast<int>(buffer.size()),
+                                                    &width, &height, &channels, 4);
   if (!image_data)
     return {};
 
-  TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
+  TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0,
+                           AbstractTextureType::Texture_2D);
 
   std::string texture_name = is_theme_asset ? "theme:" + path : "cover:" + path;
   std::shared_ptr<AbstractTexture> tex = g_gfx->CreateTexture(tex_config, texture_name);
@@ -2580,14 +2641,15 @@ ImGuiFrontend::CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game)
   }
 
   // Explicitly mark this as NOT a theme asset (false)
-  return std::move(CreateTextureFromPath(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png", false));
+  return std::move(CreateTextureFromPath(
+      File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png", false));
 }
 
 AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 {
   if (m_missing_tex != nullptr && m_missing_tex.get() != nullptr)
     return m_missing_tex.get();
-  
+
   // The missing texture is neither a theme asset nor a cover, so use default false
   auto missing_tex = CreateTextureFromPath("Assets/missing.png");
   m_missing_tex = std::move(missing_tex);
@@ -2597,9 +2659,10 @@ AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 
 void ImGuiFrontend::LoadGameList()
 {
-  // Clear the cover textures cache when reloading the game list to prevent memory issue with large game libraries
+  // Clear the cover textures cache when reloading the game list to prevent memory issue with large
+  // game libraries
   m_cover_textures.clear();
-  
+
   m_paths.clear();
   m_games.clear();
   m_displayed_games.clear();
@@ -2611,17 +2674,17 @@ void ImGuiFrontend::LoadGameList()
 
 #ifdef WINRT_XBOX
   // Load from the default path
-  auto localCachePath = winrt::to_string(winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
+  auto localCachePath = winrt::to_string(
+      winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
   RecurseFolderForGames(localCachePath);
 #endif
 
   std::sort(m_games.begin(), m_games.end(),
-          [this](std::shared_ptr<UICommon::GameFile> first,
+            [this](std::shared_ptr<UICommon::GameFile> first,
                    std::shared_ptr<UICommon::GameFile> second) {
-          return first->GetName(m_title_database) < second->GetName(m_title_database);
-  });
+              return first->GetName(m_title_database) < second->GetName(m_title_database);
+            });
 
-  
   FilterGamesForCategory();
 }
 
@@ -2674,7 +2737,7 @@ void ImGuiFrontend::LoadThemes()
 
   RecurseForThemes("Sys/FrontendThemes/");
   RecurseForThemes(File::GetUserPath(D_THEMES_IDX));
-  
+
   if (!m_selected_theme)
   {
     m_selected_theme = &m_themes["Flipper 2.2 - Beached"];
@@ -2720,7 +2783,8 @@ void ImGuiFrontend::RecurseFolderForGames(std::string path)
       if (!file.is_regular_file())
         continue;
 
-      std::filesystem::path normalised = std::filesystem::path(file.path().string()).make_preferred();
+      std::filesystem::path normalised =
+          std::filesystem::path(file.path().string()).make_preferred();
       std::string game_path = normalised.string();
       std::replace(game_path.begin(), game_path.end(), '\\', '/');
       auto game = new UICommon::GameFile(game_path);
@@ -2757,7 +2821,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
     if (ImGui::Selectable("General", state->selectedTab == General))
     {
       state->selectedTab = General;
-    } 
+    }
     if (ImGui::Selectable("Interface", state->selectedTab == Interface))
     {
       state->selectedTab = Interface;
@@ -2896,17 +2960,16 @@ bool FrontendTheme::TryLoad(std::string path)
 
   // Check for required files in both PNG and JPEG formats
   bool hasCarouselBg = File::Exists(path + "\\carousel_background_all.png") ||
-                      File::Exists(path + "\\carousel_background_all.jpg") ||
-                      File::Exists(path + "\\carousel_background_all.jpeg");
-  
+                       File::Exists(path + "\\carousel_background_all.jpg") ||
+                       File::Exists(path + "\\carousel_background_all.jpeg");
+
   bool hasMenuBg = File::Exists(path + "\\menu_background.png") ||
                    File::Exists(path + "\\menu_background.jpg") ||
                    File::Exists(path + "\\menu_background.jpeg");
-  
-  bool hasListUi = File::Exists(path + "\\list_ui.png") ||
-                   File::Exists(path + "\\list_ui.jpg") ||
+
+  bool hasListUi = File::Exists(path + "\\list_ui.png") || File::Exists(path + "\\list_ui.jpg") ||
                    File::Exists(path + "\\list_ui.jpeg");
-  
+
   bool hasCarouselUi = File::Exists(path + "\\carousel_ui.png") ||
                        File::Exists(path + "\\carousel_ui.jpg") ||
                        File::Exists(path + "\\carousel_ui.jpeg");
@@ -2989,14 +3052,16 @@ void CreateAudioTab(UIState* state)
   if (ImGui::CollapsingHeader("DSP Options"))
   {
     const char* dsp_items[] = {"HLE", "LLE Recompiler", "LLE Interpreter"};
-    int dsp_idx = Config::Get(Config::MAIN_DSP_HLE) ? 0 : (Config::Get(Config::MAIN_DSP_JIT) ? 1 : 2);
+    int dsp_idx =
+        Config::Get(Config::MAIN_DSP_HLE) ? 0 : (Config::Get(Config::MAIN_DSP_JIT) ? 1 : 2);
     if (ImGui::Combo("DSP Emulation Engine", &dsp_idx, dsp_items, IM_ARRAYSIZE(dsp_items)))
     {
       Config::SetBaseOrCurrent(Config::MAIN_DSP_HLE, dsp_idx == 0);
       Config::SetBaseOrCurrent(Config::MAIN_DSP_JIT, dsp_idx == 1);
       Config::Save();
     }
-    ImGui::TextWrapped("Selects how the Digital Signal Processor (DSP) is emulated. Determines how the audio is processed and what system features are available.");
+    ImGui::TextWrapped("Selects how the Digital Signal Processor (DSP) is emulated. Determines how "
+                       "the audio is processed and what system features are available.");
   }
 
   if (ImGui::CollapsingHeader("Volume"))
@@ -3025,11 +3090,14 @@ void CreateAudioTab(UIState* state)
       }
     }
 
-    if (ImGui::Combo("Audio Backend", &backend_idx, [](void* data, int idx, const char** out_text) {
-      auto* backends = static_cast<std::vector<std::string>*>(data);
-      *out_text = backends->at(idx).c_str();
-      return true;
-    }, &backends, static_cast<int>(backends.size())))
+    if (ImGui::Combo(
+            "Audio Backend", &backend_idx,
+            [](void* data, int idx, const char** out_text) {
+              auto* backends = static_cast<std::vector<std::string>*>(data);
+              *out_text = backends->at(idx).c_str();
+              return true;
+            },
+            &backends, static_cast<int>(backends.size())))
     {
       Config::SetBaseOrCurrent(Config::MAIN_AUDIO_BACKEND, backends[backend_idx]);
       Config::Save();
@@ -3050,11 +3118,14 @@ void CreateAudioTab(UIState* state)
         }
       }
 
-      if (ImGui::Combo("Output Device", &device_idx, [](void* data, int idx, const char** out_text) {
-        auto* devices = static_cast<std::vector<std::string>*>(data);
-        *out_text = devices->at(idx).c_str();
-        return true;
-      }, &devices, static_cast<int>(devices.size())))
+      if (ImGui::Combo(
+              "Output Device", &device_idx,
+              [](void* data, int idx, const char** out_text) {
+                auto* devices = static_cast<std::vector<std::string>*>(data);
+                *out_text = devices->at(idx).c_str();
+                return true;
+              },
+              &devices, static_cast<int>(devices.size())))
       {
         Config::SetBaseOrCurrent(Config::MAIN_WASAPI_DEVICE, devices[device_idx]);
         Config::Save();
@@ -3070,10 +3141,12 @@ void CreateAudioTab(UIState* state)
         Config::SetBaseOrCurrent(Config::MAIN_AUDIO_LATENCY, latency);
         Config::Save();
       }
-      ImGui::TextWrapped("Sets the audio latency in milliseconds. Higher values may reduce audio crackling.");
+      ImGui::TextWrapped(
+          "Sets the audio latency in milliseconds. Higher values may reduce audio crackling.");
     }
   }
-#ifndef WINRT_XBOX // TODO: Can't figure out how this one works will look into more if it's requested or is required
+#ifndef WINRT_XBOX  // TODO: Can't figure out how this one works will look into more if it's
+                    // requested or is required
   if (ImGui::CollapsingHeader("Dolby Pro Logic II"))
   {
     bool dpl2 = Config::Get(Config::MAIN_DPL2_DECODER);
@@ -3082,17 +3155,22 @@ void CreateAudioTab(UIState* state)
       Config::SetBaseOrCurrent(Config::MAIN_DPL2_DECODER, dpl2);
       Config::Save();
     }
-    ImGui::TextWrapped("Enables Dolby Pro Logic II emulation using 5.1 surround. Certain backends only.");
+    ImGui::TextWrapped(
+        "Enables Dolby Pro Logic II emulation using 5.1 surround. Certain backends only.");
     if (dpl2)
     {
-      const char* quality_items[] = {"Lowest (Latency ~10 ms)", "Low (Latency ~20 ms)", "High (Latency ~40 ms)", "Highest (Latency ~80 ms)"};
+      const char* quality_items[] = {"Lowest (Latency ~10 ms)", "Low (Latency ~20 ms)",
+                                     "High (Latency ~40 ms)", "Highest (Latency ~80 ms)"};
       int quality_idx = static_cast<int>(Config::Get(Config::MAIN_DPL2_QUALITY));
-      if (ImGui::Combo("Decoding Quality", &quality_idx, quality_items, IM_ARRAYSIZE(quality_items)))
+      if (ImGui::Combo("Decoding Quality", &quality_idx, quality_items,
+                       IM_ARRAYSIZE(quality_items)))
       {
-        Config::SetBaseOrCurrent(Config::MAIN_DPL2_QUALITY, static_cast<AudioCommon::DPL2Quality>(quality_idx));
+        Config::SetBaseOrCurrent(Config::MAIN_DPL2_QUALITY,
+                                 static_cast<AudioCommon::DPL2Quality>(quality_idx));
         Config::Save();
       }
-      ImGui::TextWrapped("Adjusts the quality setting of the Dolby Pro Logic II decoder. Higher presets increases audio latency.");
+      ImGui::TextWrapped("Adjusts the quality setting of the Dolby Pro Logic II decoder. Higher "
+                         "presets increases audio latency.");
     }
   }
 #endif
@@ -3105,7 +3183,8 @@ void CreateAudioTab(UIState* state)
       Config::SetBaseOrCurrent(Config::MAIN_AUDIO_BUFFER_SIZE, buffer_size);
       Config::Save();
     }
-    ImGui::TextWrapped("Sets the size of the audio buffer in milliseconds. Higher values may reduce audio crackling.");
+    ImGui::TextWrapped("Sets the size of the audio buffer in milliseconds. Higher values may "
+                       "reduce audio crackling.");
 
     bool fill_gaps = Config::Get(Config::MAIN_AUDIO_FILL_GAPS);
     if (ImGui::Checkbox("Fill Gaps", &fill_gaps))
@@ -3118,7 +3197,8 @@ void CreateAudioTab(UIState* state)
     bool mute_on_speed_limit = Config::Get(Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT);
     if (ImGui::Checkbox("Mute on Speed Limit", &mute_on_speed_limit))
     {
-      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT, mute_on_speed_limit);
+      Config::SetBaseOrCurrent(Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT,
+                               mute_on_speed_limit);
       Config::Save();
     }
     ImGui::TextWrapped("Mutes audio when emulation speed is above 100%.");
@@ -3220,8 +3300,8 @@ void CreateAchievementsTab(UIState* state)
         {
           Config::SetBaseOrCurrent(Config::RA_USERNAME, username);
 
-        try
-        {            
+          try
+          {
             std::string before_token = Config::Get(Config::RA_API_TOKEN);
 
             AchievementManager::GetInstance().Login(std::string(password));
@@ -3242,16 +3322,15 @@ void CreateAchievementsTab(UIState* state)
               OutputDebugStringA("RetroAchievements: Login successful\n");
 #endif
             }
-        }
-        catch (const std::exception& e)
-        {
-          login_error = std::string("Exception during login: ") + e.what();
+          }
+          catch (const std::exception& e)
+          {
+            login_error = std::string("Exception during login: ") + e.what();
 #ifdef _WIN32
             OutputDebugStringA(("RetroAchievements Login Error: " + login_error + "\n").c_str());
 #endif
+          }
         }
-      
-      }
         // Clear password from memory
         memset(password, 0, sizeof(password));
       }
@@ -3269,38 +3348,39 @@ void CreateAchievementsTab(UIState* state)
       // Display user profile information
       auto& instance = AchievementManager::GetInstance();
       const auto* user_info = rc_client_get_user_info(instance.GetClient());
-      
+
       if (user_info)
       {
         ImGui::BeginGroup();
-        
+
         // User name and points
         ImGui::Text("%s", user_info->display_name);
         ImGui::Text("%u points", user_info->score);
-        
+
         // User badge/icon
         const AchievementManager::Badge& player_badge = instance.GetPlayerBadge();
         if (!player_badge.data.empty())
         {
           static std::shared_ptr<AbstractTexture> profile_texture;
           static std::vector<u8> last_badge_data;
-          
+
           if (last_badge_data != player_badge.data)
           {
             last_badge_data = player_badge.data;
-            
+
             TextureConfig tex_config(player_badge.width, player_badge.height, 1, 1, 1,
-                                     AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
-            
+                                     AbstractTextureFormat::RGBA8, 0,
+                                     AbstractTextureType::Texture_2D);
+
             profile_texture = g_gfx->CreateTexture(tex_config, "RetroAchievements profile picture");
             if (profile_texture)
             {
               profile_texture->Load(0, player_badge.width, player_badge.height, player_badge.width,
-                                   player_badge.data.data(),
-                                   sizeof(u8) * 4 * player_badge.width * player_badge.height);
+                                    player_badge.data.data(),
+                                    sizeof(u8) * 4 * player_badge.width * player_badge.height);
             }
           }
-          
+
           if (profile_texture)
           {
             ImGui::Image((ImTextureID)(intptr_t)profile_texture.get(), ImVec2(64, 64));
@@ -3311,13 +3391,13 @@ void CreateAchievementsTab(UIState* state)
                 ImGui::GetCursorScreenPos(),
                 ImVec2(ImGui::GetCursorScreenPos().x + 64, ImGui::GetCursorScreenPos().y + 64),
                 IM_COL32(50, 150, 255, 255));
-            
+
             ImGui::Dummy(ImVec2(64, 64));
           }
         }
-        
+
         ImGui::EndGroup();
-        
+
         ImGui::SameLine(ImGui::GetWindowWidth() - 100);
         if (ImGui::Button("Log Out"))
         {
@@ -3341,26 +3421,27 @@ void CreateAchievementsTab(UIState* state)
           Config::Save();
         }
       }
-      
+
       if (instance.IsGameLoaded())
       {
         ImGui::Separator();
         rc_client_user_game_summary_t game_summary;
         rc_client_get_user_game_summary(instance.GetClient(), &game_summary);
-        
+
         ImGui::Text("%s", instance.GetGameDisplayName().data());
-        ImGui::Text("Unlocked %u/%u achievements worth %u/%u points", 
-                   game_summary.num_unlocked_achievements,
-                   game_summary.num_core_achievements,
-                   game_summary.points_unlocked,
-                   game_summary.points_core);
-        
-        float progress = game_summary.num_core_achievements > 0 ?
-                        (float)game_summary.num_unlocked_achievements / game_summary.num_core_achievements : 0.0f;
-        ImGui::ProgressBar(progress, ImVec2(-1, 0), 
-                          (std::to_string(game_summary.num_unlocked_achievements) + "/" + 
-                           std::to_string(game_summary.num_core_achievements)).c_str());
-        
+        ImGui::Text("Unlocked %u/%u achievements worth %u/%u points",
+                    game_summary.num_unlocked_achievements, game_summary.num_core_achievements,
+                    game_summary.points_unlocked, game_summary.points_core);
+
+        float progress =
+            game_summary.num_core_achievements > 0 ?
+                (float)game_summary.num_unlocked_achievements / game_summary.num_core_achievements :
+                0.0f;
+        ImGui::ProgressBar(progress, ImVec2(-1, 0),
+                           (std::to_string(game_summary.num_unlocked_achievements) + "/" +
+                            std::to_string(game_summary.num_core_achievements))
+                               .c_str());
+
         const auto& rich_presence = instance.GetRichPresence();
         if (rich_presence[0] != '\0')
         {
@@ -3374,9 +3455,9 @@ void CreateAchievementsTab(UIState* state)
     ImGui::BeginDisabled(!logged_in || (is_running && !hardcore_enabled));
     if (ImGui::Checkbox("Enable Hardcore Mode", &hardcore_enabled))
     {
-        Config::SetBaseOrCurrent(Config::RA_HARDCORE_ENABLED, hardcore_enabled);
-        Config::Save();
-      }
+      Config::SetBaseOrCurrent(Config::RA_HARDCORE_ENABLED, hardcore_enabled);
+      Config::Save();
+    }
     if (ImGui::IsItemHovered())
     {
       ImGui::SetTooltip(
@@ -3449,7 +3530,7 @@ void CreateAchievementsTab(UIState* state)
     ImGui::Separator();
     ImGui::Text("Display Settings");
 
-#ifndef WINRT_XBOX // We cannot use Discord RPC on Xbox as you cannot launch the Discord Win32 app.
+#ifndef WINRT_XBOX  // We cannot use Discord RPC on Xbox as you cannot launch the Discord Win32 app.
 #ifdef USE_DISCORD_PRESENCE
     ImGui::BeginDisabled(!Config::Get(Config::MAIN_USE_DISCORD_PRESENCE));
     if (ImGui::Checkbox("Enable Discord Presence", &discord_presence_enabled))
@@ -3459,8 +3540,7 @@ void CreateAchievementsTab(UIState* state)
     }
     if (ImGui::IsItemHovered())
     {
-      ImGui::SetTooltip(
-        "Use RetroAchievements rich presence in your Discord status.\n\n"
+      ImGui::SetTooltip("Use RetroAchievements rich presence in your Discord status.\n\n"
                         "Show Current Game on Discord must be enabled.");
     }
     ImGui::EndDisabled();
@@ -3501,12 +3581,11 @@ void DrawAchievementsWindow(UIState* state)
   auto* client = instance.GetClient();
   if (!client)
     return;
-    
+
   rc_client_achievement_list_t* achievement_list = rc_client_create_achievement_list(
-      client, 
-      RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE | RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL,
+      client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE | RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL,
       RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_PROGRESS);
-  
+
   if (achievement_list)
   {
     for (u32 bucket_idx = 0; bucket_idx < achievement_list->num_buckets; bucket_idx++)
@@ -3517,19 +3596,19 @@ void DrawAchievementsWindow(UIState* state)
         for (u32 ach_idx = 0; ach_idx < bucket.num_achievements; ach_idx++)
         {
           auto* achievement = bucket.achievements[ach_idx];
-          
+
           const auto& badge = instance.GetAchievementBadge(achievement->id, !achievement->unlocked);
           ImGui::PushID(achievement->id);
 
           if (state->achievement_badges.find(achievement->id) == state->achievement_badges.end())
           {
-            TextureConfig config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8, 
-                               0, AbstractTextureType::Texture_2D);
+            TextureConfig config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8,
+                                 0, AbstractTextureType::Texture_2D);
             auto tex = g_gfx->CreateTexture(config);
             if (tex)
             {
-              tex->Load(0, badge.width, badge.height, badge.width, badge.data.data(), 
-                       badge.width * badge.height * sizeof(u32));
+              tex->Load(0, badge.width, badge.height, badge.width, badge.data.data(),
+                        badge.width * badge.height * sizeof(u32));
               state->achievement_badges[achievement->id] = std::move(tex);
             }
           }
@@ -3545,19 +3624,20 @@ void DrawAchievementsWindow(UIState* state)
           const float badge_size = 64.0f;
           const float border_thickness = 4.0f;
           ImVec2 pos = ImGui::GetCursorScreenPos();
-          ImGui::GetWindowDrawList()->AddRect(
-              pos,
-              ImVec2(pos.x + badge_size + border_thickness * 2,
-                     pos.y + badge_size + border_thickness * 2),
-              ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0, border_thickness);
-          
+          ImGui::GetWindowDrawList()->AddRect(pos,
+                                              ImVec2(pos.x + badge_size + border_thickness * 2,
+                                                     pos.y + badge_size + border_thickness * 2),
+                                              ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0,
+                                              border_thickness);
+
           ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + border_thickness,
-                                    ImGui::GetCursorPos().y + border_thickness));
-          ImGui::Image((ImTextureID)(intptr_t)state->achievement_badges[achievement->id].get(), ImVec2(badge_size, badge_size));
-          
+                                     ImGui::GetCursorPos().y + border_thickness));
+          ImGui::Image((ImTextureID)(intptr_t)state->achievement_badges[achievement->id].get(),
+                       ImVec2(badge_size, badge_size));
+
           ImGui::SameLine();
           ImGui::BeginGroup();
-          
+
           ImGui::TextWrapped("%s", achievement->title);
           ImGui::TextWrapped("%s", achievement->description);
           ImGui::Text("%d points", achievement->points);
@@ -3583,8 +3663,9 @@ void DrawAchievementsWindow(UIState* state)
 
           if (achievement->measured_percent > 0.000)
           {
-            ImGui::ProgressBar(achievement->unlocked ? 1.0f : achievement->measured_percent / 100.0f,
-                             ImVec2(-1, 0), achievement->measured_progress);
+            ImGui::ProgressBar(achievement->unlocked ? 1.0f :
+                                                       achievement->measured_percent / 100.0f,
+                               ImVec2(-1, 0), achievement->measured_progress);
           }
 
           ImGui::EndGroup();

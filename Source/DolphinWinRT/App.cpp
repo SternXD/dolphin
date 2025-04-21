@@ -19,11 +19,11 @@
 
 #include <Gamingdeviceinformation.h>
 
-#include "UICommon/UICommon.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/ImGuiMenu/ImGuiFrontend.h"
 #include "UICommon/ImGuiMenu/ImGuiNetplay.h"
 #include "UICommon/ImGuiMenu/WinRTKeyboard.h"
+#include "UICommon/UICommon.h"
 
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/Present.h"
@@ -35,8 +35,8 @@
 #include "Core/Core.h"
 #include "Core/HW/ProcessorInterface.h"
 #include "Core/Host.h"
-#include "Core/IOS/STM/STM.h"
 #include "Core/HotkeyManager.h"
+#include "Core/IOS/STM/STM.h"
 
 #define SDL_MAIN_HANDLED
 
@@ -105,16 +105,16 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           Core::Stop(Core::System::GetInstance());
         }
         Core::Shutdown(Core::System::GetInstance());
-        
+
         // Reset flags
         g_shutdown_requested.Clear();
         g_tried_graceful_shutdown.Clear();
-        
+
         // Reinitialize UI systems
         UICommon::Shutdown();
         UICommon::Init();
         UICommon::InitControllers({});
-        
+
         // Create and run new frontend
         auto frontend = new ImGuiFrontend::ImGuiFrontend();
         auto result = frontend->RunUntilSelection();
@@ -147,7 +147,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           Core::Stop(system);
           Core::Shutdown(system);
           m_running.Clear();
-          
+
           // Only set frontend reset after proper cleanup
           g_needs_frontend_reset.Set();
           break;
@@ -166,8 +166,10 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
           if (HotkeyManagerEmu::IsPressed(HK_TOGGLE_ONSCREEN_MENU, false))
           {
             OSD::ToggleShowSettings();
-            Core::SetState(Core::System::GetInstance(), Core::GetState(Core::System::GetInstance()) == Core::State::Paused ? Core::State::Running :
-                                                                      Core::State::Paused);
+            Core::SetState(Core::System::GetInstance(),
+                           Core::GetState(Core::System::GetInstance()) == Core::State::Paused ?
+                               Core::State::Running :
+                               Core::State::Paused);
           }
 
           if (Core::GetState(Core::System::GetInstance()) == Core::State::Paused)
@@ -203,9 +205,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     }
   }
 
-  void InitializeDolphinForNetplay() {
-    m_running.Set();
-  }
+  void InitializeDolphinForNetplay() { m_running.Set(); }
 
   winrt::fire_and_forget InitializeDolphinFromFile(std::string path)
   {
@@ -252,7 +252,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         wsi.render_width = hdi.GetCurrentDisplayMode().ResolutionWidthInRawPixels();
         wsi.render_height = hdi.GetCurrentDisplayMode().ResolutionHeightInRawPixels();
         // Our UI is based on 1080p, and we're adding a modifier to zoom in by 80%
-        wsi.render_surface_scale = ((float) wsi.render_width / 1920.0f) * 1.8f;
+        wsi.render_surface_scale = ((float)wsi.render_width / 1920.0f) * 1.8f;
       }
     }
 
@@ -340,45 +340,45 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     window.Activate();
   }
 
-    void EnteredBackground(const IInspectable&,
-                           const winrt::Windows::ApplicationModel::EnteredBackgroundEventArgs& args)
+  void EnteredBackground(const IInspectable&,
+                         const winrt::Windows::ApplicationModel::EnteredBackgroundEventArgs& args)
+  {
+  }
+
+  void Suspending(const IInspectable&,
+                  const winrt::Windows::ApplicationModel::SuspendingEventArgs& args)
+  {
+    auto& system = Core::System::GetInstance();
+
+    // The Series S/X quits fast, so let's immediately shutdown to ensure all the caches save.
+    Core::Stop(system);
+    Core::Shutdown(system);
+    UICommon::Shutdown();
+
+    if (!m_launchOnExit.empty())
     {
+      winrt::Windows::Foundation::Uri m_uri{m_launchOnExit};
+      auto asyncOperation = winrt::Windows::System::Launcher::LaunchUriAsync(m_uri);
+      asyncOperation.Completed([](winrt::Windows::Foundation::IAsyncOperation<bool> const& sender,
+                                  winrt::Windows::Foundation::AsyncStatus const asyncStatus) {
+        CoreApplication::Exit();
+      });
     }
+  }
 
-    void Suspending(const IInspectable&,
-                    const winrt::Windows::ApplicationModel::SuspendingEventArgs& args)
-    {
-      auto& system = Core::System::GetInstance();
+  void OnCharacterReceived(winrt::Windows::UI::Core::CoreWindow const& /* sender */,
+                           winrt::Windows::UI::Core::CharacterReceivedEventArgs const& e /* args */)
+  {
+    UWP::HandleCharacter(e.KeyCode());
+  }
 
-      // The Series S/X quits fast, so let's immediately shutdown to ensure all the caches save.
-      Core::Stop(system);
-      Core::Shutdown(system);
-      UICommon::Shutdown();
-
-      if (!m_launchOnExit.empty())
-      {
-        winrt::Windows::Foundation::Uri m_uri{m_launchOnExit};
-        auto asyncOperation = winrt::Windows::System::Launcher::LaunchUriAsync(m_uri);
-        asyncOperation.Completed([](winrt::Windows::Foundation::IAsyncOperation<bool> const& sender,
-                                    winrt::Windows::Foundation::AsyncStatus const asyncStatus) {
-          CoreApplication::Exit();
-        });
-      }
-    }
-
-    void OnCharacterReceived(winrt::Windows::UI::Core::CoreWindow const& /* sender */,
-                        winrt::Windows::UI::Core::CharacterReceivedEventArgs const& e /* args */)
-    {
-      UWP::HandleCharacter(e.KeyCode());
-    }
-
-    void SetWindow(CoreWindow const& w)
-    {
-      w.Closed({this, &App::OnClosed});
-      w.CharacterReceived({this, &App::OnCharacterReceived});
-    }
-  };
-}
+  void SetWindow(CoreWindow const& w)
+  {
+    w.Closed({this, &App::OnClosed});
+    w.CharacterReceived({this, &App::OnCharacterReceived});
+  }
+};
+}  // namespace UWP
 
 int WINAPIV WinMain()
 {
@@ -469,7 +469,6 @@ bool Host_TASInputHasFocus()
 {
   return false;
 }
-
 
 void Host_TitleChanged()
 {
