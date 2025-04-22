@@ -92,6 +92,11 @@
 #include "AudioCommon/Enums.h"
 #include "AudioCommon/WASAPIStream.h"
 
+#include "ImGuiMappingWindow.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
+
+#include <thread>
+
 namespace WGI = winrt::Windows::Gaming::Input;
 using winrt::Windows::UI::Core::CoreWindow;
 using namespace winrt;
@@ -1378,23 +1383,61 @@ void CreateControlsTab(UIState* state)
   {
     if (ImGui::BeginTabItem("GameCube"))
     {
-      for (int i = 0; i < 4; i++)
+      // Layout ports with Map button in two columns
+      if (ImGui::BeginTable("gc_ports_tbl", 2, ImGuiTableFlags_SizingStretchProp))
       {
-        CreateGCPort(i, devices);
+        ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < 4; i++)
+        {
+          ImGui::TableNextRow();
+          ImGui::TableNextColumn();
+          CreateGCPort(i, devices);
+          ImGui::TableNextColumn();
+          if (ImGui::Button(std::format("Map##gc{}", i).c_str(), ImVec2(-1, 0)))
+          {
+            state->showMappingWindow = true;
+            state->mappingWindowPort = i;
+            state->mappingWindowIsWii = false;
+          }
+        }
+        ImGui::EndTable();
       }
       ImGui::EndTabItem();
     }
 
     if (ImGui::BeginTabItem("Wii"))
     {
-      for (int i = 0; i < 4; i++)
+      // Layout ports with Map button in two columns
+      if (ImGui::BeginTable("wii_ports_tbl", 2, ImGuiTableFlags_SizingStretchProp))
       {
-        CreateWiiPort(i, devices);
+        ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < 4; i++)
+        {
+          ImGui::TableNextRow();
+          ImGui::TableNextColumn();
+          CreateWiiPort(i, devices);
+          ImGui::TableNextColumn();
+          if (ImGui::Button(std::format("Map##wii{}", i).c_str(), ImVec2(-1, 0)))
+          {
+            state->showMappingWindow = true;
+            state->mappingWindowPort = i;
+            state->mappingWindowIsWii = true;
+          }
+        }
+        ImGui::EndTable();
       }
       ImGui::EndTabItem();
     }
     ImGui::EndTabBar();
   }
+
+  // Show mapping window
+  if (state->showMappingWindow)
+    ImGuiMappingWindow::Draw(state->mappingWindowPort, state);
 }
 
 void CreateGameCubeTab(UIState* state)
@@ -2569,33 +2612,30 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
 
 AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameFile> game)
 {
-  std::string game_id = game->GetGameID();
-  auto result = m_cover_textures.find(game_id);
-  if (m_cover_textures.find(game_id) == m_cover_textures.end())
+  const std::string id = game->GetGameID();
+  auto it = m_cover_textures.find(id);
+  if (it == m_cover_textures.end())
   {
-    std::shared_ptr<AbstractTexture> texture = CreateCoverTexture(game);
-    if (texture == nullptr)
+    if (auto tex = CreateCoverTexture(game))
     {
-      AbstractTexture* missing = GetOrCreateMissingTex();
-      m_cover_textures.emplace(game_id, missing);
-      return missing;
+      m_cover_textures[id] = tex;
+      return tex.get();
     }
-    else
-    {
-      auto pair = m_cover_textures.emplace(game_id, std::move(texture));
-      return pair.first->second.get();
-    }
+    // placeholder and async download
+    AbstractTexture* missing = GetOrCreateMissingTex();
+    m_cover_textures[id] = std::shared_ptr<AbstractTexture>(missing, [](AbstractTexture*){});
+    std::thread([this, game, id]() {
+      game->DownloadDefaultCover();
+      if (auto real = CreateCoverTexture(game))
+        m_cover_textures[id] = real;
+    }).detach();
+    return missing;
   }
-
-  if (result->second && result->second.get())
-  {
-    return result->second.get();
-  }
-  else
-  {
-    m_cover_textures.erase(game_id);
-    return GetHandleForGame(game);
-  }
+  if (it->second)
+    return it->second.get();
+  // stale entry: retry
+  m_cover_textures.erase(it);
+  return GetHandleForGame(game);
 }
 
 std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is_theme_asset)
@@ -2635,14 +2675,12 @@ std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is
 std::shared_ptr<AbstractTexture>
 ImGuiFrontend::CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game)
 {
-  if (!File::Exists(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"))
-  {
-    game->DownloadDefaultCover();
-  }
+  const std::string path = File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png";
+  if (!File::Exists(path))
+    return nullptr;
 
   // Explicitly mark this as NOT a theme asset (false)
-  return std::move(CreateTextureFromPath(
-      File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png", false));
+  return std::move(CreateTextureFromPath(path, false));
 }
 
 AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
@@ -2678,14 +2716,6 @@ void ImGuiFrontend::LoadGameList()
       winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
   RecurseFolderForGames(localCachePath);
 #endif
-
-  std::sort(m_games.begin(), m_games.end(),
-            [this](std::shared_ptr<UICommon::GameFile> first,
-                   std::shared_ptr<UICommon::GameFile> second) {
-              return first->GetName(m_title_database) < second->GetName(m_title_database);
-            });
-
-  FilterGamesForCategory();
 }
 
 void ImGuiFrontend::FilterGamesForCategory()
@@ -3368,11 +3398,10 @@ void CreateAchievementsTab(UIState* state)
           {
             last_badge_data = player_badge.data;
 
-            TextureConfig tex_config(player_badge.width, player_badge.height, 1, 1, 1,
-                                     AbstractTextureFormat::RGBA8, 0,
-                                     AbstractTextureType::Texture_2D);
+            TextureConfig config(player_badge.width, player_badge.height, 1, 1, 1,
+                                 AbstractTextureFormat::RGBA8, 0, AbstractTextureType::Texture_2D);
 
-            profile_texture = g_gfx->CreateTexture(tex_config, "RetroAchievements profile picture");
+            profile_texture = g_gfx->CreateTexture(config, "RetroAchievements profile picture");
             if (profile_texture)
             {
               profile_texture->Load(0, player_badge.width, player_badge.height, player_badge.width,
@@ -3604,6 +3633,7 @@ void DrawAchievementsWindow(UIState* state)
           {
             TextureConfig config(badge.width, badge.height, 1, 1, 1, AbstractTextureFormat::RGBA8,
                                  0, AbstractTextureType::Texture_2D);
+
             auto tex = g_gfx->CreateTexture(config);
             if (tex)
             {
@@ -3624,11 +3654,10 @@ void DrawAchievementsWindow(UIState* state)
           const float badge_size = 64.0f;
           const float border_thickness = 4.0f;
           ImVec2 pos = ImGui::GetCursorScreenPos();
-          ImGui::GetWindowDrawList()->AddRect(pos,
-                                              ImVec2(pos.x + badge_size + border_thickness * 2,
-                                                     pos.y + badge_size + border_thickness * 2),
-                                              ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0,
-                                              border_thickness);
+          ImGui::GetWindowDrawList()->AddRectFilled(
+              ImVec2(pos.x, pos.y),
+              ImVec2(pos.x + badge_size + border_thickness * 2, pos.y + badge_size + border_thickness * 2),
+              ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0);
 
           ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + border_thickness,
                                      ImGui::GetCursorPos().y + border_thickness));

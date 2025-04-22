@@ -1,5 +1,7 @@
 #pragma once
 
+#include <InputCommon/ControlReference/ControlReference.h>
+#include <memory>
 #include "Core/TitleDatabase.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 #include "VideoCommon/AbstractTexture.h"
@@ -66,6 +68,14 @@ public:
   ThemeBG currentBG = BG_All;
   CarouselCategory carouselCat = CAll;
   std::map<uint32_t, std::shared_ptr<AbstractTexture>> achievement_badges;
+  // Add mapping window state
+  bool showMappingWindow = false;
+  int mappingWindowPort = 0;
+  bool mappingWindowIsWii = false;
+  // Currently capturing input for a ControlReference
+  ::ControlReference* capturingRef = nullptr;
+  // Input detector used during capture
+  std::unique_ptr<ciface::Core::InputDetector> mappingInputDetector;
 };
 
 class FrontendResult

@@ -88,11 +88,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UICommon\ImGuiMenu\ImGuiFrontend.cpp" />
+    <ClCompile Include="UICommon\ImGuiMenu\ImGuiMappingWindow.cpp" />
     <ClCompile Include="UICommon\ImGuiMenu\ImGuiNetplay.cpp" />
     <ClCompile Include="UICommon\ImGuiMenu\WinRTKeyboard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UICommon\ImGuiMenu\ImGuiFrontend.h" />
+    <ClInclude Include="UICommon\ImGuiMenu\ImGuiMappingWindow.h" />
     <ClInclude Include="UICommon\ImGuiMenu\ImGuiNetplay.h" />
     <ClInclude Include="UICommon\ImGuiMenu\WinRTKeyboard.h" />
   </ItemGroup>
