@@ -12,6 +12,8 @@
 #include "ImageLoader.h"
 #include "WinRTKeyboard.h"
 
+#include <fmt/format.h>
+
 #include <cctype>
 #include <memory>
 
@@ -45,6 +47,7 @@
 #include "Core/Config/UISettings.h"
 #include "Core/Config/WiimoteSettings.h"
 #include "Core/ConfigManager.h"
+#include "Core/Core/WiiUtils.h"
 #include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/GCPadEmu.h"
@@ -56,7 +59,6 @@
 #include "Core/System.h"
 #include "Core/TitleDatabase.h"
 #include "Core/WiiRoot.h"
-#include "Core/Core/WiiUtils.h"
 
 #include <rcheevos/include/rc_client_raintegration.h>
 #include "rcheevos/include/rc_api_info.h"
@@ -68,6 +70,7 @@
 #include "rcheevos/include/rc_runtime.h"
 
 #include "Common/CommonPaths.h"
+#include "Common/Config/Config.h"
 #include "Common/FileSearch.h"
 #include "Common/FileUtil.h"
 #include "Common/Image.h"
@@ -85,6 +88,7 @@
 
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
+#include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
 #include "InputCommon/ControllerInterface/MappingCommon.h"
 #include "InputCommon/ControllerInterface/WGInput/WGInput.h"
 #include "InputCommon/InputConfig.h"
@@ -1434,6 +1438,72 @@ void CreateControlsTab(UIState* state)
       }
       ImGui::EndTabItem();
     }
+
+    if (ImGui::BeginTabItem("Alternate Input Sources"))
+    {
+      bool dsu_enabled = Config::Get(ciface::DualShockUDPClient::Settings::SERVERS_ENABLED);
+      if (ImGui::Checkbox("Enable DSU", &dsu_enabled))
+      {
+        Config::SetBaseOrCurrent(ciface::DualShockUDPClient::Settings::SERVERS_ENABLED,
+                                 dsu_enabled);
+        Config::Save();
+        if (dsu_enabled)
+          g_controller_interface.RefreshDevices();
+      }
+      ImGui::Separator();
+      std::string servers = Config::Get(ciface::DualShockUDPClient::Settings::SERVERS);
+      std::vector<std::string> entries;
+      for (size_t p = 0, n; p < servers.size(); p = n + 1)
+      {
+        n = servers.find(';', p);
+        if (n == std::string::npos)
+          break;
+        auto e = servers.substr(p, n - p);
+        if (!e.empty())
+          entries.push_back(e);
+      }
+      static int selected_dsu = -1;
+      for (int i = 0; i < (int)entries.size(); ++i)
+      {
+        if (ImGui::Selectable(entries[i].c_str(), selected_dsu == i))
+          selected_dsu = i;
+      }
+      ImGui::Separator();
+      static char dsu_addr[64] = "";
+      static int dsu_port = ciface::DualShockUDPClient::DEFAULT_SERVER_PORT;
+      ImGui::Text("Address");
+      ImGui::SameLine();
+      if (ImGui::Button("Edit IP"))
+      {
+        UWP::ShowKeyboard();
+        ImGui::SetKeyboardFocusHere();
+      }
+      ImGui::SameLine();
+      ImGui::InputText("##dsu_addr", dsu_addr, sizeof(dsu_addr));
+      ImGui::InputInt("Port", &dsu_port);
+      if (ImGui::Button("Add Server"))
+      {
+        auto entry = fmt::format("DS4:{}:{};", dsu_addr, dsu_port);
+        Config::SetBaseOrCurrent(ciface::DualShockUDPClient::Settings::SERVERS, servers + entry);
+        Config::Save();
+        servers = Config::Get(ciface::DualShockUDPClient::Settings::SERVERS);
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Remove Selected") && selected_dsu >= 0)
+      {
+        std::string rebuilt;
+        for (int i = 0; i < (int)entries.size(); ++i)
+        {
+          if (i == selected_dsu)
+            continue;
+          rebuilt += entries[i] + ";";
+        }
+        Config::SetBaseOrCurrent(ciface::DualShockUDPClient::Settings::SERVERS, rebuilt);
+        Config::Save();
+        selected_dsu = -1;
+      }
+      ImGui::EndTabItem();
+    }
     ImGui::EndTabBar();
   }
 
@@ -1881,12 +1951,6 @@ void CreateWiiTab(UIState* state)
   static bool show_online_update_modal = false;
   if (ImGui::Button("Online System Update"))
     show_online_update_modal = true;
-  if (ImGui::Button("Disc-based System Update"))
-  {
-    state->controlsDisabled = true;
-    UWP::OpenDiscPicker();
-    state->controlsDisabled = false;
-  }
   if (show_online_update_modal)
   {
     ImGui::OpenPopup("Online System Update");
@@ -1896,12 +1960,13 @@ void CreateWiiTab(UIState* state)
   {
     ImGui::Text("Select Region:");
     static int region_idx = 0;
-    const char* region_items[] = {"JPN","USA","EUR","KOR"};
+    const char* region_items[] = {"JPN", "USA", "EUR", "KOR"};
     ImGui::Combo("Region", &region_idx, region_items, IM_ARRAYSIZE(region_items));
     if (ImGui::Button("OK"))
     {
       state->controlsDisabled = true;
-      WiiUtils::UpdateResult res = WiiUtils::DoOnlineUpdate([](size_t, size_t, u64){ return true; }, region_items[region_idx]);
+      WiiUtils::UpdateResult res = WiiUtils::DoOnlineUpdate(
+          [](size_t, size_t, u64) { return true; }, region_items[region_idx]);
       state->controlsDisabled = false;
       ImGui::CloseCurrentPopup();
       // Show result in popup
@@ -1919,12 +1984,19 @@ void CreateWiiTab(UIState* state)
     const char* msg = "";
     switch (last_res)
     {
-    case WiiUtils::UpdateResult::Succeeded: msg = "Update completed successfully."; break;
-    case WiiUtils::UpdateResult::AlreadyUpToDate: msg = "Already up-to-date."; break;
-    default: msg = "Update failed or cancelled."; break;
+    case WiiUtils::UpdateResult::Succeeded:
+      msg = "Update completed successfully.";
+      break;
+    case WiiUtils::UpdateResult::AlreadyUpToDate:
+      msg = "Already up-to-date.";
+      break;
+    default:
+      msg = "Update failed or cancelled.";
+      break;
     }
     ImGui::TextWrapped("%s", msg);
-    if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
+    if (ImGui::Button("OK"))
+      ImGui::CloseCurrentPopup();
     ImGui::EndPopup();
   }
 
@@ -2312,7 +2384,8 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
 
             controller->LoadConfig(&sec);
             controller->SetDefaultDevice(default_device);
-            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index), WiimoteSource::None);
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
+                                     WiimoteSource::None);
           }
           else if (m_selected_wiimote_profile[index] == "Wiimote + Nunchuk")
           {
@@ -2402,6 +2475,7 @@ void CreateGCPort(int index, std::vector<std::string> devices)
           {
             // Loading an empty inifile section clears everything.
             Common::IniFile::Section sec;
+
             controller->LoadConfig(&sec);
             controller->SetDefaultDevice(default_device);
             Config::SetBaseOrCurrent(Config::GetInfoForSIDevice(index),
