@@ -1,8 +1,8 @@
 #pragma once
 
-#include <InputCommon/ControlReference/ControlReference.h>
 #include <memory>
 #include "Core/TitleDatabase.h"
+#include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 #include "VideoCommon/AbstractTexture.h"
 
@@ -76,6 +76,12 @@ public:
   ::ControlReference* capturingRef = nullptr;
   // Input detector used during capture
   std::unique_ptr<ciface::Core::InputDetector> mappingInputDetector;
+  int wiimote_extension = 0;
+  bool wiimote_motionplus = false;
+  float wiimote_speaker_pan = 0.0f;
+  float wiimote_battery = 1.0f;
+  bool wiimote_upright = true;
+  bool wiimote_sideways = false;
 };
 
 class FrontendResult

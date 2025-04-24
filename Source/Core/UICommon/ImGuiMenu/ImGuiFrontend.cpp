@@ -177,6 +177,8 @@ ImGuiFrontend::ImGuiFrontend()
   }
 
   ImGuiIO& io = ImGui::GetIO();
+  ciface::WGInput::Init();
+  g_controller_interface.RefreshDevices();
 
   io.AddKeyEvent(ImGuiKey_Backspace, true);  // When key is pressed
 
@@ -666,15 +668,11 @@ void CreateGeneralTab(UIState* state)
                                      "0.8x", "0.9x", "1.0x", "1.1x", "1.2x", "1.3x", "1.4x",
                                      "1.5x", "1.6x", "1.7x", "1.8x", "1.9x", "2.0x"};
 
-  // Convert current config value to index.
-  static int current_speed_index =
-      static_cast<int>(Config::Get(Config::MAIN_EMULATION_SPEED) * 10.0f);
+  static int current_speed_index = 10;
 
-  // Render the combo box.
   if (ImGui::Combo("Speed Limit", &current_speed_index, speed_limit_items,
                    IM_ARRAYSIZE(speed_limit_items)))
   {
-    // Update the config when the selection changes.
     float new_speed = current_speed_index * 0.1f;
     Config::SetBaseOrCurrent(Config::MAIN_EMULATION_SPEED, new_speed);
     Config::Save();
@@ -2623,7 +2621,7 @@ AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameF
     }
     // placeholder and async download
     AbstractTexture* missing = GetOrCreateMissingTex();
-    m_cover_textures[id] = std::shared_ptr<AbstractTexture>(missing, [](AbstractTexture*){});
+    m_cover_textures[id] = std::shared_ptr<AbstractTexture>(missing, [](AbstractTexture*) {});
     std::thread([this, game, id]() {
       game->DownloadDefaultCover();
       if (auto real = CreateCoverTexture(game))
@@ -2930,7 +2928,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503-253)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503a-262)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
@@ -3656,7 +3654,8 @@ void DrawAchievementsWindow(UIState* state)
           ImVec2 pos = ImGui::GetCursorScreenPos();
           ImGui::GetWindowDrawList()->AddRectFilled(
               ImVec2(pos.x, pos.y),
-              ImVec2(pos.x + badge_size + border_thickness * 2, pos.y + badge_size + border_thickness * 2),
+              ImVec2(pos.x + badge_size + border_thickness * 2,
+                     pos.y + badge_size + border_thickness * 2),
               ImGui::ColorConvertFloat4ToU32(border_color), 0.0f, 0);
 
           ImGui::SetCursorPos(ImVec2(ImGui::GetCursorPos().x + border_thickness,
