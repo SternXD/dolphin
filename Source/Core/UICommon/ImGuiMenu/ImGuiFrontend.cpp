@@ -2928,7 +2928,7 @@ void DrawSettingsMenu(UIState* state, float frame_scale)
       break;
     case About:
       ImGui::TextWrapped(
-          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503a-262)\n\n"
+          "Dolphin Emulator on UWP - Version 1.1.9.0 (Based on Dolphin 2503a-306)\n\n"
           "This is a fork of Dolphin Emulator introducing Xbox support with a big picture "
           "frontend\n\n"
           "Credits:\n\n"
