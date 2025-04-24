@@ -56,6 +56,7 @@
 #include "Core/System.h"
 #include "Core/TitleDatabase.h"
 #include "Core/WiiRoot.h"
+#include "Core/Core/WiiUtils.h"
 
 #include <rcheevos/include/rc_client_raintegration.h>
 #include "rcheevos/include/rc_api_info.h"
@@ -1687,10 +1688,9 @@ void CreateGameCubeTab(UIState* state)
 
 void CreateWiiTab(UIState* state)
 {
-  static bool s_booted_wii_menu = false;
-  if (ImGui::Button("Load Wii System Menu") && !s_booted_wii_menu)
+  static WiiUtils::UpdateResult last_res = WiiUtils::UpdateResult::Cancelled;
+  if (ImGui::Button("Load Wii System Menu") && !state->controlsDisabled)
   {
-    s_booted_wii_menu = true;
     state->controlsDisabled = true;
     state->showSettingsWindow = false;
     state->pending_boot_params =
@@ -1875,6 +1875,65 @@ void CreateWiiTab(UIState* state)
     }
 
     ImGui::TreePop();
+  }
+
+  ImGui::Separator();
+  static bool show_online_update_modal = false;
+  if (ImGui::Button("Online System Update"))
+    show_online_update_modal = true;
+  if (ImGui::Button("Disc-based System Update"))
+  {
+    state->controlsDisabled = true;
+    UWP::OpenDiscPicker();
+    state->controlsDisabled = false;
+  }
+  if (show_online_update_modal)
+  {
+    ImGui::OpenPopup("Online System Update");
+    show_online_update_modal = false;
+  }
+  if (ImGui::BeginPopupModal("Online System Update", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    ImGui::Text("Select Region:");
+    static int region_idx = 0;
+    const char* region_items[] = {"JPN","USA","EUR","KOR"};
+    ImGui::Combo("Region", &region_idx, region_items, IM_ARRAYSIZE(region_items));
+    if (ImGui::Button("OK"))
+    {
+      state->controlsDisabled = true;
+      WiiUtils::UpdateResult res = WiiUtils::DoOnlineUpdate([](size_t, size_t, u64){ return true; }, region_items[region_idx]);
+      state->controlsDisabled = false;
+      ImGui::CloseCurrentPopup();
+      // Show result in popup
+      last_res = res;
+      ImGui::OpenPopup("Update Result");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel"))
+      ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+  }
+
+  if (ImGui::BeginPopupModal("Update Result", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+  {
+    const char* msg = "";
+    switch (last_res)
+    {
+    case WiiUtils::UpdateResult::Succeeded: msg = "Update completed successfully."; break;
+    case WiiUtils::UpdateResult::AlreadyUpToDate: msg = "Already up-to-date."; break;
+    default: msg = "Update failed or cancelled."; break;
+    }
+    ImGui::TextWrapped("%s", msg);
+    if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+  }
+
+  ImGui::Separator();
+  if (ImGui::Button("Disc-based System Update"))
+  {
+    state->controlsDisabled = true;
+    UWP::OpenDiscPicker();
+    state->controlsDisabled = false;
   }
 }
 

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
+#pragma push_macro("interface")
+#ifdef interface
+#undef interface
+#endif
 
 #include <cstddef>
 #include <functional>
@@ -189,3 +193,5 @@ protected:
   u64 m_id = 0xFFFFFFFFFFFFFFFF;
 };
 }  // namespace IOS::HLE::USB
+
+#pragma pop_macro("interface")
