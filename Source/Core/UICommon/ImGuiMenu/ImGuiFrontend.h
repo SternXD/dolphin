@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "Core/Boot/Boot.h"
 #include "Core/TitleDatabase.h"
 #include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
@@ -76,6 +77,8 @@ public:
   ::ControlReference* capturingRef = nullptr;
   // Input detector used during capture
   std::unique_ptr<ciface::Core::InputDetector> mappingInputDetector;
+  // Deferred boot parameters (Wii/GC system menu)
+  std::unique_ptr<BootParameters> pending_boot_params;
   int wiimote_extension = 0;
   bool wiimote_motionplus = false;
   float wiimote_speaker_pan = 0.0f;
@@ -89,17 +92,25 @@ class FrontendResult
 public:
   std::shared_ptr<UICommon::GameFile> game_result;
   bool netplay;
+  std::unique_ptr<BootParameters> boot_params;
 
   FrontendResult()
   {
     game_result = nullptr;
     netplay = false;
+    boot_params = nullptr;
   }
 
   FrontendResult(std::shared_ptr<UICommon::GameFile> game)
   {
     game_result = game;
     netplay = false;
+    boot_params = nullptr;
+  }
+
+  FrontendResult(std::unique_ptr<BootParameters> bp)
+      : game_result(nullptr), netplay(false), boot_params(std::move(bp))
+  {
   }
 };
 

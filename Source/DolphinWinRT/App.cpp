@@ -128,6 +128,31 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         {
           InitializeDolphinForNetplay();
         }
+        else if (result.boot_params)
+        {
+          auto& system = Core::System::GetInstance();
+          if (Core::IsRunning(system))
+            Core::Stop(system);
+          Core::Shutdown(system);
+          // Prepare window info
+          CoreWindow window = CoreWindow::GetForCurrentThread();
+          void* abi = winrt::get_abi(window);
+          WindowSystemInfo wsi;
+          wsi.type = WindowSystemType::Windows;
+          wsi.render_surface = abi;
+          wsi.render_width = window.Bounds().Width;
+          wsi.render_height = window.Bounds().Height;
+          // Boot via BootManager
+          if (!BootManager::BootCore(system, std::move(result.boot_params), wsi))
+          {
+            fprintf(stderr, "Could not boot system menu\n");
+            Core::Shutdown(system);
+          }
+          else
+          {
+            m_running.Set();
+          }
+        }
 
         delete frontend;
       }

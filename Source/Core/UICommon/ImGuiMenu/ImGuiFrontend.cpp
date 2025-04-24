@@ -614,6 +614,9 @@ FrontendResult ImGuiFrontend::RunMainLoop()
     DrawAchievementsWindow(&m_state);
 
     g_presenter->Present();
+
+    if (m_state.pending_boot_params)
+      return FrontendResult(std::move(m_state.pending_boot_params));
   }
 
   ImGui::SetNextWindowSize(ImVec2(100 * m_frame_scale, 50 * m_frame_scale));
@@ -1505,10 +1508,7 @@ void CreateGameCubeTab(UIState* state)
     auto BootGameCubeIPL = [state](DiscIO::Region region) {
       state->controlsDisabled = true;
       state->showSettingsWindow = false;
-      auto boot_params = std::make_unique<BootParameters>(BootParameters::IPL(region));
-      BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params),
-                            WindowSystemInfo());
-      state->controlsDisabled = false;
+      state->pending_boot_params = std::make_unique<BootParameters>(BootParameters::IPL(region));
     };
 
     bool any = false;
@@ -1693,13 +1693,8 @@ void CreateWiiTab(UIState* state)
     s_booted_wii_menu = true;
     state->controlsDisabled = true;
     state->showSettingsWindow = false;
-    Core::Stop(Core::System::GetInstance());
-    Core::Shutdown(Core::System::GetInstance());
-    auto boot_params =
+    state->pending_boot_params =
         std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU});
-    BootManager::BootCore(Core::System::GetInstance(), std::move(boot_params), WindowSystemInfo());
-    state->controlsDisabled = false;
-    s_booted_wii_menu = false;
   }
   ImGui::TextWrapped("Boots the Wii System Menu from the NAND.");
 
