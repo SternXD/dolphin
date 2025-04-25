@@ -14,8 +14,10 @@
 
 #include <fmt/format.h>
 
+#include <atomic>
 #include <cctype>
 #include <memory>
+#include <thread>
 
 #include <Windows.h>
 #include <imgui.h>
@@ -100,8 +102,6 @@
 #include "ImGuiMappingWindow.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 
-#include <thread>
-
 namespace WGI = winrt::Windows::Gaming::Input;
 using winrt::Windows::UI::Core::CoreWindow;
 using namespace winrt;
@@ -112,6 +112,13 @@ void OnHardcoreChangedStatic()
   if (Config::Get(Config::RA_HARDCORE_ENABLED))
     Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
 }
+
+static bool show_update_progress_modal = false;
+static std::atomic<bool> update_complete{false};
+static std::atomic<float> update_progress{0.0f};
+static WiiUtils::UpdateResult async_res = WiiUtils::UpdateResult::Cancelled;
+static std::thread update_thread;
+static bool show_update_result_modal = false;
 
 namespace ImGuiFrontend
 {
@@ -1811,7 +1818,6 @@ void CreateWiiTab(UIState* state)
 
     ImGui::TreePop();
   }
-
   const char* sound_items[] = {"Mono", "Stereo", "Surround"};
   auto sound = Config::Get(Config::SYSCONF_SOUND_MODE);
 
@@ -1964,14 +1970,21 @@ void CreateWiiTab(UIState* state)
     ImGui::Combo("Region", &region_idx, region_items, IM_ARRAYSIZE(region_items));
     if (ImGui::Button("OK"))
     {
-      state->controlsDisabled = true;
-      WiiUtils::UpdateResult res = WiiUtils::DoOnlineUpdate(
-          [](size_t, size_t, u64) { return true; }, region_items[region_idx]);
-      state->controlsDisabled = false;
+      // start update
+      show_update_progress_modal = true;
+      update_complete = false;
+      update_progress = 0.0f;
+      std::string region = region_items[region_idx];
+      update_thread = std::thread([region]() {
+        async_res = WiiUtils::DoOnlineUpdate(
+            [](size_t done, size_t total, u64) {
+              update_progress = total ? float(done) / float(total) : 0.0f;
+              return true;
+            },
+            region);
+        update_complete = true;
+      });
       ImGui::CloseCurrentPopup();
-      // Show result in popup
-      last_res = res;
-      ImGui::OpenPopup("Update Result");
     }
     ImGui::SameLine();
     if (ImGui::Button("Cancel"))
@@ -1979,6 +1992,33 @@ void CreateWiiTab(UIState* state)
     ImGui::EndPopup();
   }
 
+  if (show_update_progress_modal)
+  {
+    ImGui::OpenPopup("Updating...");
+    show_update_progress_modal = false;
+  }
+  ImGui::SetNextWindowSize(ImVec2(600, 100), ImGuiCond_Once);
+  if (ImGui::BeginPopupModal("Updating...", nullptr, ImGuiWindowFlags_NoResize))
+  {
+    ImGui::ProgressBar(update_progress.load(), ImVec2(-FLT_MIN, 0.0f));
+    if (update_complete.load())
+    {
+      if (update_thread.joinable())
+        update_thread.join();
+      state->controlsDisabled = false;
+      ImGui::CloseCurrentPopup();
+      last_res = async_res;
+      show_update_result_modal = true;
+    }
+    ImGui::EndPopup();
+  }
+
+  if (show_update_result_modal)
+  {
+    ImGui::OpenPopup("Update Result");
+    show_update_result_modal = false;
+  }
+  ImGui::SetNextWindowSize(ImVec2(600, 150), ImGuiCond_Once);
   if (ImGui::BeginPopupModal("Update Result", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
   {
     const char* msg = "";
@@ -2001,10 +2041,10 @@ void CreateWiiTab(UIState* state)
   }
 
   ImGui::Separator();
-  if (ImGui::Button("Disc-based System Update"))
+  if (ImGui::Button("Install WAD"))
   {
     state->controlsDisabled = true;
-    UWP::OpenDiscPicker();
+    UWP::OpenWADPicker();
     state->controlsDisabled = false;
   }
 }
@@ -2384,8 +2424,7 @@ void CreateWiiPort(int index, std::vector<std::string> devices)
 
             controller->LoadConfig(&sec);
             controller->SetDefaultDevice(default_device);
-            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index),
-                                     WiimoteSource::None);
+            Config::SetBaseOrCurrent(Config::GetInfoForWiimoteSource(index), WiimoteSource::None);
           }
           else if (m_selected_wiimote_profile[index] == "Wiimote + Nunchuk")
           {
@@ -2738,30 +2777,25 @@ std::shared_ptr<UICommon::GameFile> ImGuiFrontend::CreateGameCarousel()
 
 AbstractTexture* ImGuiFrontend::GetHandleForGame(std::shared_ptr<UICommon::GameFile> game)
 {
-  const std::string id = game->GetGameID();
-  auto it = m_cover_textures.find(id);
-  if (it == m_cover_textures.end())
+  std::string game_id = game->GetGameID();
+  auto result = m_cover_textures.find(game_id);
+  if (m_cover_textures.find(game_id) == m_cover_textures.end())
   {
-    if (auto tex = CreateCoverTexture(game))
+    std::shared_ptr<AbstractTexture> texture = CreateCoverTexture(game);
+    if (texture == nullptr)
     {
-      m_cover_textures[id] = tex;
-      return tex.get();
+      AbstractTexture* missing = GetOrCreateMissingTex();
+      m_cover_textures.emplace(game_id, missing);
+      return missing;
     }
-    // placeholder and async download
-    AbstractTexture* missing = GetOrCreateMissingTex();
-    m_cover_textures[id] = std::shared_ptr<AbstractTexture>(missing, [](AbstractTexture*) {});
-    std::thread([this, game, id]() {
-      game->DownloadDefaultCover();
-      if (auto real = CreateCoverTexture(game))
-        m_cover_textures[id] = real;
-    }).detach();
-    return missing;
+    else
+    {
+      auto pair = m_cover_textures.emplace(game_id, std::move(texture));
+      return pair.first->second.get();
+    }
   }
-  if (it->second)
-    return it->second.get();
-  // stale entry: retry
-  m_cover_textures.erase(it);
-  return GetHandleForGame(game);
+
+  return result->second.get();
 }
 
 std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is_theme_asset)
@@ -2801,20 +2835,20 @@ std::shared_ptr<AbstractTexture> CreateTextureFromPath(std::string path, bool is
 std::shared_ptr<AbstractTexture>
 ImGuiFrontend::CreateCoverTexture(std::shared_ptr<UICommon::GameFile> game)
 {
-  const std::string path = File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png";
-  if (!File::Exists(path))
-    return nullptr;
+  if (!File::Exists(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"))
+  {
+    game->DownloadDefaultCover();
+  }
 
-  // Explicitly mark this as NOT a theme asset (false)
-  return std::move(CreateTextureFromPath(path, false));
+  return std::move(
+      CreateTextureFromPath(File::GetUserPath(D_COVERCACHE_IDX) + game->GetGameTDBID() + ".png"));
 }
 
 AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 {
-  if (m_missing_tex != nullptr && m_missing_tex.get() != nullptr)
+  if (m_missing_tex != nullptr)
     return m_missing_tex.get();
 
-  // The missing texture is neither a theme asset nor a cover, so use default false
   auto missing_tex = CreateTextureFromPath("Assets/missing.png");
   m_missing_tex = std::move(missing_tex);
 
@@ -2823,10 +2857,6 @@ AbstractTexture* ImGuiFrontend::GetOrCreateMissingTex()
 
 void ImGuiFrontend::LoadGameList()
 {
-  // Clear the cover textures cache when reloading the game list to prevent memory issue with large
-  // game libraries
-  m_cover_textures.clear();
-
   m_paths.clear();
   m_games.clear();
   m_displayed_games.clear();
@@ -2835,7 +2865,6 @@ void ImGuiFrontend::LoadGameList()
   {
     RecurseFolderForGames(dir);
   }
-
 #ifdef WINRT_XBOX
   // Load from the default path
   auto localCachePath = winrt::to_string(

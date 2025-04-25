@@ -15,6 +15,7 @@
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "Core/HW/DVD/DVDInterface.h"
 #include "Core/System.h"
+#include "../Core/Core/WiiUtils.h"
 
 #include <ppltasks.h>
 
@@ -115,6 +116,21 @@ inline winrt::fire_and_forget OpenDiscPicker()
       const Core::CPUThreadGuard guard(system);
       system.GetDVDInterface().ChangeDisc(guard, winrt::to_string(file.Path().data()));
     }, false);
+  }
+}
+
+inline winrt::fire_and_forget OpenWADPicker()
+{
+  FileOpenPicker openPicker;
+  openPicker.ViewMode(PickerViewMode::List);
+  openPicker.SuggestedStartLocation(PickerLocationId::HomeGroup);
+  openPicker.FileTypeFilter().Append(L".wad");
+
+  auto file = co_await openPicker.PickSingleFileAsync();
+  if (file)
+  {
+    std::string path = winrt::to_string(file.Path().data());
+    Core::RunOnCPUThread(Core::System::GetInstance(), [path]() { WiiUtils::InstallWAD(path); }, false);
   }
 }
 

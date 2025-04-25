@@ -119,18 +119,28 @@ static float DrawMessage(int index, Message& msg, const ImVec2& position, int ti
       {
         const u32 width = msg.icon->width;
         const u32 height = msg.icon->height;
-        TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0,
-                                 AbstractTextureType::Texture_2DArray);
-        msg.texture = g_gfx->CreateTexture(tex_config);
-        if (msg.texture)
+        if (width == 0 || height == 0)
         {
-          msg.texture->Load(0, width, height, width, msg.icon->data.data(),
-                            sizeof(u32) * width * height);
+          // Invalid icon dimensions, skip icon
+          msg.icon = nullptr;
         }
         else
         {
-          // don't try again next time
-          msg.icon = nullptr;
+          // Use 2D texture for message icons
+          TextureConfig tex_config(width, height, 1, 1, 1,
+                                   AbstractTextureFormat::RGBA8, 0,
+                                   AbstractTextureType::Texture_2D);
+          msg.texture = g_gfx->CreateTexture(tex_config);
+          if (msg.texture)
+          {
+            msg.texture->Load(0, width, height, width, msg.icon->data.data(),
+                              sizeof(u32) * width * height);
+          }
+          else
+          {
+            // Skip icon next time
+            msg.icon = nullptr;
+          }
         }
       }
 
@@ -379,14 +389,22 @@ void DrawInGameMenu()
                     auto it_tex = badge_textures.find(ach->id);
                     if (it_tex == badge_textures.end())
                     {
-                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
-                                        AbstractTextureFormat::RGBA8, 0,
-                                        AbstractTextureType::Texture_2DArray);
-                      auto tex = g_gfx->CreateTexture(cfg);
-                      if (tex)
-                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
-                                  slice.width * slice.height * sizeof(u32));
-                      badge_textures[ach->id] = std::move(tex);
+                      // Guard against zero-dimension badges
+                      if (slice.width == 0 || slice.height == 0)
+                      {
+                        badge_textures[ach->id] = nullptr;
+                      }
+                      else
+                      {
+                        TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
+                                          AbstractTextureFormat::RGBA8, 0,
+                                          AbstractTextureType::Texture_2D);
+                        auto tex = g_gfx->CreateTexture(cfg);
+                        if (tex)
+                          tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
+                                    slice.width * slice.height * sizeof(u32));
+                        badge_textures[ach->id] = std::move(tex);
+                      }
                       it_tex = badge_textures.find(ach->id);
                     }
                     ImGui::BeginGroup();
@@ -414,14 +432,22 @@ void DrawInGameMenu()
                     auto it_tex = badge_textures.find(ach->id);
                     if (it_tex == badge_textures.end())
                     {
-                      TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
-                                        AbstractTextureFormat::RGBA8, 0,
-                                        AbstractTextureType::Texture_2DArray);
-                      auto tex = g_gfx->CreateTexture(cfg);
-                      if (tex)
-                        tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
-                                  slice.width * slice.height * sizeof(u32));
-                      badge_textures[ach->id] = std::move(tex);
+                      // Guard against zero-dimension badges
+                      if (slice.width == 0 || slice.height == 0)
+                      {
+                        badge_textures[ach->id] = nullptr;
+                      }
+                      else
+                      {
+                        TextureConfig cfg(slice.width, slice.height, 1, 1, 1,
+                                          AbstractTextureFormat::RGBA8, 0,
+                                          AbstractTextureType::Texture_2D);
+                        auto tex = g_gfx->CreateTexture(cfg);
+                        if (tex)
+                          tex->Load(0, slice.width, slice.height, slice.width, slice.data.data(),
+                                    slice.width * slice.height * sizeof(u32));
+                        badge_textures[ach->id] = std::move(tex);
+                      }
                       it_tex = badge_textures.find(ach->id);
                     }
                     ImGui::BeginGroup();
