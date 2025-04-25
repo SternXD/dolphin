@@ -1,0 +1,64 @@
+# Docs - https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+# Credits to PCSX2 for the base of this yaml
+name: Bug Report
+description: Found a problem with the emulator? Help us improve it.
+title: "[BUG]: "
+labels: [Bug]
+assignees:
+  - SternXD
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Important: Read First
+
+        Please do not make support requests on GitHub. Our issue tracker is for tracking bugs and feature requests only
+        If you need help configuring the emulator please check out the [wiki](https://wiki.xboxdev.store) or contact us on our discord.
+
+        If you are unsure, start with [discord](https://discord.gg/WCmxvvxHqu).
+
+        Please make an effort to make sure your issue isn't already reported on this repo.
+
+        Do not create issues involving software piracy of BIOS or ISO files, our rules specifically prohibit this and your issue will be closed.
+
+  - type: textarea
+    id: desc
+    attributes:
+      label: Describe the Bug
+      description: "A clear and concise description of what the bug is"
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+      description: "Steps to reproduce the behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: expect
+    attributes:
+      label: Expected Behavior
+      description: "A clear and concise description of what you expected to happen"
+    validations:
+      required: false
+  - type: input
+    id: rev
+    attributes:
+      label: XBSX2 Revision
+      description: "Please ensure you are on the latest version before making an issue"
+      placeholder: "Example: v2.0.8.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: console
+    attributes:
+      label: Console
+      options:
+      - Xbox Series X
+      - Xbox Series S
+      - Xbox One X
+      - Xbox One S
+      - Xbox One
+    validations:
+      required: true
