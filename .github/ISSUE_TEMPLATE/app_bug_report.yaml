@@ -45,9 +45,9 @@ body:
   - type: input
     id: rev
     attributes:
-      label: XBSX2 Revision
+      label: Dolphin Revision
       description: "Please ensure you are on the latest version before making an issue"
-      placeholder: "Example: v2.0.8.2"
+      placeholder: "Example: v1.1.9.0"
     validations:
       required: true
   - type: dropdown
