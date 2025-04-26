@@ -469,6 +469,9 @@ FrontendResult ImGuiFrontend::RunMainLoop()
             m_state.showSettingsWindow = !m_state.showSettingsWindow;
             m_state.menuPressed = true;
             LoadGameList();
+            FilterGamesForCategory();
+            if (m_selectedGameIdx >= m_displayed_games.size() || m_selectedGameIdx < 0)
+              m_selectedGameIdx = 0;
           }
 
           break;
@@ -2871,6 +2874,9 @@ void ImGuiFrontend::LoadGameList()
       winrt::Windows::Storage::ApplicationData::Current().LocalCacheFolder().Path());
   RecurseFolderForGames(localCachePath);
 #endif
+  FilterGamesForCategory();
+  if (m_selectedGameIdx >= m_displayed_games.size() || m_selectedGameIdx < 0)
+    m_selectedGameIdx = 0;
 }
 
 void ImGuiFrontend::FilterGamesForCategory()
