@@ -238,7 +238,8 @@ ImGuiFrontend::ImGuiFrontend()
   if (AchievementManager::GetInstance().IsHardcoreModeActive())
     Config::SetBaseOrCurrent(Config::MAIN_ENABLE_DEBUGGING, false);
   // Listen for config changes to RA_ENABLED or RA_HARDCORE_ENABLED
-  Config::AddConfigChangedCallback([]() { OnHardcoreChangedStatic(); });
+  m_config_changed_callback_id =
+      Config::AddConfigChangedCallback([]() { OnHardcoreChangedStatic(); });
   // If hardcore is enabled at startup, ensure we react
   if (Config::Get(Config::RA_HARDCORE_ENABLED))
     OnHardcoreChangedStatic();

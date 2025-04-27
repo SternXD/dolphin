@@ -178,6 +178,10 @@ private:
   std::string m_prev_list_search;
   std::vector<std::shared_ptr<UICommon::GameFile>> m_list_search_results;
   char m_list_search_buf[32]{};
+
+#ifdef USE_RETRO_ACHIEVEMENTS
+  Config::ConfigChangedCallbackID m_config_changed_callback_id;
+#endif  // USE_RETRO_ACHIEVEMENTS
 };
 
 void DrawSettingsMenu(UIState* state, float frame_scale);
