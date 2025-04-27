@@ -141,6 +141,11 @@ MathUtil::Rectangle<int>
 AbstractGfx::ConvertFramebufferRectangle(const MathUtil::Rectangle<int>& rect,
                                          const AbstractFramebuffer* framebuffer) const
 {
+  // Add null check to prevent crash
+  if (!framebuffer)
+  {
+    return rect;  // Return original rectangle if framebuffer is null
+  }
   return ConvertFramebufferRectangle(rect, framebuffer->GetWidth(), framebuffer->GetHeight());
 }
 
