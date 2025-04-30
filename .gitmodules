@@ -87,3 +87,7 @@
 [submodule "Externals/SFML/SFML"]
 	path = Externals/SFML/SFML
 	url = https://github.com/SFML/SFML.git
+[submodule "Externals/SDL/SDL"]
+	path = Externals/SDL/SDL
+	url = https://github.com/libsdl-org/SDL.git
+	branch = SDL2
