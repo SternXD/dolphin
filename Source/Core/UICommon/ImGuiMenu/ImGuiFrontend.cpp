@@ -661,6 +661,13 @@ void CreateGeneralTab(UIState* state)
     Config::Save();
   }
 
+  bool SyncGPU = Config::Get(Config::MAIN_SYNC_GPU);
+  if (ImGui::Checkbox("Synchronize GPU Thread", &SyncGPU))
+  {
+    Config::SetBaseOrCurrent(Config::MAIN_SYNC_GPU, SyncGPU);
+    Config::Save();
+  }
+  
   bool cheats = Config::Get(Config::MAIN_ENABLE_CHEATS);
   if (ImGui::Checkbox("Enable Cheats", &cheats))
   {
