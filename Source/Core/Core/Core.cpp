@@ -305,12 +305,6 @@ void Stop(Core::System& system)  // - Hammertime!
 
     system.GetFifo().ExitGpuLoop();
   }
-
-  const ExpansionInterface::EXIDeviceType type = Config::Get(Config::MAIN_SERIAL_PORT_1);
-  if ((type == ExpansionInterface::EXIDeviceType::Baseboard))
-  {
-    AMMediaboard::Shutdown();
-  }
 }
 
 void DeclareAsCPUThread()
