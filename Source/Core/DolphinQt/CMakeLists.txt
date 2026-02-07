@@ -364,8 +364,12 @@ add_executable(dolphin-emu
   Settings/InterfacePane.h
   Settings/PathPane.cpp
   Settings/PathPane.h
+  Settings/TriforceBaseboardSettingsDialog.cpp
+  Settings/TriforceBaseboardSettingsDialog.h
   Settings/USBDeviceAddToWhitelistDialog.cpp
   Settings/USBDeviceAddToWhitelistDialog.h
+  Settings/USBDevicePicker.cpp
+  Settings/USBDevicePicker.h
   Settings/WiiPane.cpp
   Settings/WiiPane.h
   SkylanderPortal/SkylanderModifyDialog.cpp

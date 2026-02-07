@@ -42,6 +42,7 @@
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/BroadbandAdapterSettingsDialog.h"
+#include "DolphinQt/Settings/TriforceBaseboardSettingsDialog.h"
 
 constexpr std::initializer_list<ExpansionInterface::Slot> GUI_SLOTS = {
     ExpansionInterface::Slot::A, ExpansionInterface::Slot::B, ExpansionInterface::Slot::SP1};
@@ -347,11 +348,12 @@ void GameCubePane::UpdateButton(ExpansionInterface::Slot slot)
     break;
   }
   case ExpansionInterface::Slot::SP1:
-    has_config = (device == ExpansionInterface::EXIDeviceType::Ethernet ||
-                  device == ExpansionInterface::EXIDeviceType::EthernetXLink ||
-                  device == ExpansionInterface::EXIDeviceType::EthernetTapServer ||
-                  device == ExpansionInterface::EXIDeviceType::EthernetBuiltIn ||
-                  device == ExpansionInterface::EXIDeviceType::ModemTapServer);
+    has_config = device == ExpansionInterface::EXIDeviceType::Ethernet ||
+                 device == ExpansionInterface::EXIDeviceType::EthernetXLink ||
+                 device == ExpansionInterface::EXIDeviceType::EthernetTapServer ||
+                 device == ExpansionInterface::EXIDeviceType::EthernetBuiltIn ||
+                 device == ExpansionInterface::EXIDeviceType::ModemTapServer ||
+                 device == ExpansionInterface::EXIDeviceType::Baseboard;
     break;
   case ExpansionInterface::Slot::SP2:
     has_config = false;
@@ -417,6 +419,8 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
   }
   case ExpansionInterface::EXIDeviceType::Baseboard:
   {
+    TriforceBaseboardSettingsDialog dialog(this);
+    dialog.exec();
     return;
   }
   default:
