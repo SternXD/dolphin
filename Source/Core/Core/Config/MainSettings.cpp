@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "AudioCommon/AudioCommon.h"
 #include "Common/Assert.h"
@@ -27,6 +28,7 @@
 #include "Core/HW/HSP/HSP_Device.h"
 #include "Core/HW/Memmap.h"
 #include "Core/HW/SI/SI_Device.h"
+#include "Core/IOS/Network/Socket.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
 #include "Core/USBUtils.h"
@@ -610,6 +612,52 @@ const Info<std::string> MAIN_WII_SPEAK_MICROPHONE{
 const Info<bool> MAIN_WII_SPEAK_MUTED{{System::Main, "EmulatedUSBDevices", "WiiSpeakMuted"}, true};
 const Info<s16> MAIN_WII_SPEAK_VOLUME_MODIFIER{
     {System::Main, "EmulatedUSBDevices", "WiiSpeakVolumeModifier"}, 0};
+
+const std::array<Info<bool>, EMULATED_LOGITECH_MIC_COUNT> MAIN_EMULATE_LOGITECH_MIC{
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "EmulateLogitechMic1"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "EmulateLogitechMic2"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "EmulateLogitechMic3"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "EmulateLogitechMic4"}, false}};
+const std::array<Info<std::string>, EMULATED_LOGITECH_MIC_COUNT> MAIN_LOGITECH_MIC_MICROPHONE{
+    Info<std::string>{{System::Main, "EmulatedUSBDevices", "LogitechMic1Microphone"}, ""},
+    Info<std::string>{{System::Main, "EmulatedUSBDevices", "LogitechMic2Microphone"}, ""},
+    Info<std::string>{{System::Main, "EmulatedUSBDevices", "LogitechMic3Microphone"}, ""},
+    Info<std::string>{{System::Main, "EmulatedUSBDevices", "LogitechMic4Microphone"}, ""}};
+const std::array<Info<bool>, EMULATED_LOGITECH_MIC_COUNT> MAIN_LOGITECH_MIC_MUTED{
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "LogitechMic1Muted"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "LogitechMic2Muted"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "LogitechMic3Muted"}, false},
+    Info<bool>{{System::Main, "EmulatedUSBDevices", "LogitechMic4Muted"}, false}};
+const std::array<Info<s16>, EMULATED_LOGITECH_MIC_COUNT> MAIN_LOGITECH_MIC_VOLUME_MODIFIER{
+    Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic1VolumeModifier"}, 0},
+    Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic2VolumeModifier"}, 0},
+    Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic3VolumeModifier"}, 0},
+    Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic4VolumeModifier"}, 0}};
+
+static std::string GetDefaultTriforceIPOverrides()
+{
+  constexpr std::string_view entries[] = {
+      // CyCraft Connect IP
+      "192.168.11.111=127.0.0.1",
+
+      // Key of Avalon
+      // Note: The server and client can't run on the same system,
+      //  but it's replaced with 127.0.0.1 here just for reference.
+      "192.168.13.1=127.0.0.1",
+
+      // NAMCO Camera
+      "192.168.29.104-108=127.0.0.1",
+
+      // All.Net Connect IP
+      "192.168.150.16=127.0.0.1",
+  };
+
+  return fmt::format("{}", fmt::join(entries, ","));
+}
+
+const Info<std::string> MAIN_TRIFORCE_BIND_IP{{System::Main, "Core", "TriforceBindIP"}, "0.0.0.0"};
+const Info<std::string> MAIN_TRIFORCE_IP_OVERRIDES{{System::Main, "Core", "TriforceIPOverrides"},
+                                                   GetDefaultTriforceIPOverrides()};
 
 // The reason we need this function is because some memory card code
 // expects to get a non-NTSC-K region even if we're emulating an NTSC-K Wii.
