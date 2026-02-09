@@ -16,6 +16,11 @@ class QShowEvent;
 class QTableWidget;
 class QTableWidgetItem;
 
+namespace Core
+{
+class System;
+}
+
 class NetworkWidget : public QDockWidget
 {
   Q_OBJECT
@@ -31,6 +36,8 @@ private:
   void CreateWidgets();
   void ConnectWidgets();
 
+  void UpdateWiiSocketTable(Core::System& system);
+  void UpdateTriforceSocketTable();
   void Update();
 
   QGroupBox* CreateSocketTableGroup();
