@@ -8,20 +8,16 @@
 
 #include "Core/HW/GCPad.h"
 #include "Core/HW/GCPadEmu.h"
-#include "Core/HW/SI/SI.h"
-#include "Core/HW/SI/SI_DeviceAMBaseboard.h"
-
-#include "Core/Config/MainSettings.h"
 
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
 #include "InputCommon/InputConfig.h"
 
-GCPadEmu::GCPadEmu(MappingWindow* window) : MappingWidget(window)
+GCPadEmu::GCPadEmu(MappingWindow* window, SubType sub_type) : MappingWidget(window)
 {
-  CreateMainLayout();
+  CreateMainLayout(sub_type);
 }
 
-void GCPadEmu::CreateMainLayout()
+void GCPadEmu::CreateMainLayout(SubType sub_type)
 {
   auto* layout = new QGridLayout;
 
@@ -29,8 +25,7 @@ void GCPadEmu::CreateMainLayout()
                     0);
   layout->addWidget(CreateGroupBox(tr("D-Pad"), Pad::GetGroup(GetPort(), PadGroup::DPad)), 1, 0);
 
-  if (Config::Get(Config::GetInfoForSIDevice(0)) ==
-      SerialInterface::SIDevices::SIDEVICE_AM_BASEBOARD)
+  if (sub_type == SubType::AMBaseboard)
   {
     layout->addWidget(CreateGroupBox(tr("Triforce"), Pad::GetGroup(GetPort(), PadGroup::Triforce)),
                       2, 0);

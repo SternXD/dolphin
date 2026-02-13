@@ -1302,6 +1302,12 @@ void MainWindow::ShowControllersWindow()
   m_settings_window->SelectPane(SettingsWindowPaneIndex::Controllers);
 }
 
+void MainWindow::ShowTriforceWindow()
+{
+  ShowSettingsWindow();
+  m_settings_window->SelectPane(SettingsWindowPaneIndex::Triforce);
+}
+
 void MainWindow::ShowFreeLookWindow()
 {
   if (!m_freelook_window)

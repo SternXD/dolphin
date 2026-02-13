@@ -42,6 +42,7 @@ enum class SettingsWindowPaneIndex : int
   Paths,
   GameCube,
   Wii,
+  Triforce,
   Advanced,
 };
 

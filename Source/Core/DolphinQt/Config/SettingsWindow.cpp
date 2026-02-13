@@ -23,6 +23,7 @@
 #include "DolphinQt/Settings/GeneralPane.h"
 #include "DolphinQt/Settings/InterfacePane.h"
 #include "DolphinQt/Settings/PathPane.h"
+#include "DolphinQt/Settings/TriforcePane.h"
 #include "DolphinQt/Settings/WiiPane.h"
 
 StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
@@ -144,8 +145,9 @@ SettingsWindow::SettingsWindow(MainWindow* parent) : StackedSettingsWindow{paren
   AddWrappedPane(new InterfacePane, tr("Interface"));
   AddWrappedPane(new AudioPane, tr("Audio"));
   AddWrappedPane(new PathPane, tr("Paths"));
-  AddWrappedPane(new GameCubePane, tr("GameCube"));
+  AddWrappedPane(new GameCubePane{parent}, tr("GameCube"));
   AddWrappedPane(new WiiPane, tr("Wii"));
+  AddWrappedPane(new TriforcePane, tr("Triforce"));
   AddWrappedPane(new AdvancedPane, tr("Advanced"));
 
   OnDoneCreatingPanes();

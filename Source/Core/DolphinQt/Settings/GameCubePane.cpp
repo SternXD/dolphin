@@ -31,7 +31,10 @@
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
+#include "DolphinQt/Config/SettingsWindow.h"
+#ifdef HAS_LIBMGBA
 #include "Core/NetPlayServer.h"
+#endif
 #include "Core/System.h"
 
 #include "DolphinQt/Config/Mapping/MappingWindow.h"
@@ -42,16 +45,18 @@
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/BroadbandAdapterSettingsDialog.h"
-#include "DolphinQt/Settings/TriforceBaseboardSettingsDialog.h"
+#include "DolphinQt/Settings/TriforcePane.h"
 
 constexpr std::initializer_list<ExpansionInterface::Slot> GUI_SLOTS = {
     ExpansionInterface::Slot::A, ExpansionInterface::Slot::B, ExpansionInterface::Slot::SP1};
 
-GameCubePane::GameCubePane()
+GameCubePane::GameCubePane(MainWindow* main_window)
 {
   CreateWidgets();
   LoadSettings();
   ConnectWidgets();
+
+  connect(this, &GameCubePane::ShowTriforceWindow, main_window, &MainWindow::ShowTriforceWindow);
 }
 
 void GameCubePane::CreateWidgets()
@@ -419,8 +424,7 @@ void GameCubePane::OnConfigPressed(ExpansionInterface::Slot slot)
   }
   case ExpansionInterface::EXIDeviceType::Baseboard:
   {
-    TriforceBaseboardSettingsDialog dialog(this);
-    dialog.exec();
+    ShowTriforceWindow();
     return;
   }
   default:

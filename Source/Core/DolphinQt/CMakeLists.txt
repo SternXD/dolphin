@@ -366,6 +366,8 @@ add_executable(dolphin-emu
   Settings/PathPane.h
   Settings/TriforceBaseboardSettingsDialog.cpp
   Settings/TriforceBaseboardSettingsDialog.h
+  Settings/TriforcePane.cpp
+  Settings/TriforcePane.h
   Settings/USBDeviceAddToWhitelistDialog.cpp
   Settings/USBDeviceAddToWhitelistDialog.h
   Settings/USBDevicePicker.cpp
