@@ -634,7 +634,7 @@ const std::array<Info<s16>, EMULATED_LOGITECH_MIC_COUNT> MAIN_LOGITECH_MIC_VOLUM
     Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic3VolumeModifier"}, 0},
     Info<s16>{{System::Main, "EmulatedUSBDevices", "LogitechMic4VolumeModifier"}, 0}};
 
-static std::string GetDefaultTriforceIPOverrides()
+static std::string GetDefaultTriforceIPRedirections()
 {
 #if defined(ANDROID)
   return "0.0.0.0/0=127.0.0.1";
@@ -670,8 +670,8 @@ static std::string GetDefaultTriforceIPOverrides()
 #endif
 }
 
-const Info<std::string> MAIN_TRIFORCE_IP_OVERRIDES{{System::Main, "Core", "TriforceIPOverrides"},
-                                                   GetDefaultTriforceIPOverrides()};
+const Info<std::string> MAIN_TRIFORCE_IP_REDIRECTIONS{
+    {System::Main, "Core", "TriforceIPRedirections"}, GetDefaultTriforceIPRedirections()};
 
 // The reason we need this function is because some memory card code
 // expects to get a non-NTSC-K region even if we're emulating an NTSC-K Wii.
