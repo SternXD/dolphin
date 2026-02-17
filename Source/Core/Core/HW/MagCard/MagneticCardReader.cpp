@@ -409,24 +409,22 @@ void MagneticCardReader::Command_A0_Clean()
   switch (m_current_step)
   {
   case 2:
-    if (!IsCardPresent())
+    // TODO: How is this command supposed to behave if a card is already in the machine ?
+    if (!IsCardLoaded())
     {
-      m_status.s = S::WAITING_FOR_CARD;
-      --m_current_step;
-      break;
+      NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Inserting cleaning card.");
+      Core::DisplayMessage("Inserting cleaning card", 4000);
+      MoveCard(R::THERMAL_HEAD);
     }
     break;
   case 3:
-    MoveCard(R::THERMAL_HEAD);
-    break;
-  case 4:
     EjectCard();
     break;
   default:
     break;
   }
 
-  if (m_current_step >= 4)
+  if (m_current_step >= 3)
     FinishCommand();
 }
 
