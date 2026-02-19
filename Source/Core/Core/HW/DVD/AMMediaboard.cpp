@@ -29,6 +29,7 @@
 #include "Core/System.h"
 
 #include "DiscIO/CachedBlob.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
 #if defined(__linux__) or defined(__APPLE__) or defined(__FreeBSD__) or defined(__NetBSD__) or     \
     defined(__HAIKU__)
@@ -930,12 +931,12 @@ static u32 NetDIMMBind(GuestSocket guest_socket, const GuestSocketAddress& guest
 
   if (bind_result < 0)
   {
-    const auto* const err_msg = Common::DecodeNetworkError(err);
-    ERROR_LOG_FMT(AMMEDIABOARD, "NetDIMMBind bind() = {} ({})", err, err_msg);
-
-    PanicAlertFmt("Failed to bind socket {}:{}\nError: {} ({})",
-                  Common::IPAddressToString(adjusted_ipv4port.ip_address),
-                  ntohs(adjusted_ipv4port.port), err, err_msg);
+    const auto msg = fmt::format("Failed to bind socket {}:{}",
+                                 Common::IPAddressToString(adjusted_ipv4port.ip_address),
+                                 ntohs(adjusted_ipv4port.port));
+    ERROR_LOG_FMT(AMMEDIABOARD, "NetDIMMBind: {} with error {}: {}", msg, err,
+                  Common::DecodeNetworkError(err));
+    OSD::AddMessage(msg, OSD::Duration::SHORT, OSD::Color::RED);
   }
 
   return bind_result;
