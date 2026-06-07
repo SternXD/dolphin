@@ -140,11 +140,10 @@ public:
   explicit BitCastPtrType(PtrType* ptr) : m_ptr(ptr) {}
 
   // Enable operator= only for pointers to non-const data
-  template <typename S>
-  inline typename std::enable_if<std::is_same<S, T>() && !std::is_const<PtrType>()>::type
-  operator=(const S& source)
+  auto& operator=(const T& source) requires(!std::is_const_v<PtrType>)
   {
     std::memcpy(m_ptr, &source, sizeof(source));
+    return *this;
   }
 
   inline operator T() const

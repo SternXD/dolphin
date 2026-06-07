@@ -23,6 +23,7 @@
 #include "Common/CommonFuncs.h"
 #include "Common/Random.h"
 #include "Common/StringUtil.h"
+#include "Common/Swap.h"
 
 namespace Common
 {
