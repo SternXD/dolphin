@@ -49,3 +49,4 @@ CMakeLists.txt.user
 /Source/DolphinWinRT/BundleArtifacts
 /Source/AppPackages/
 /Source/x64/
+/Tools/deploy-xbox.sh
