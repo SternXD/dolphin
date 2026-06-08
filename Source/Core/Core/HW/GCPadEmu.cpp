@@ -238,9 +238,12 @@ void GCPad::LoadDefaults(const ControllerInterface& ciface)
                                       "/Xbox One Game Controller:Pad E`");  // Right
 
   // Triforce
-  m_triforce->SetControlExpression(0, "`1`");  // Test
-  m_triforce->SetControlExpression(1, "`2`");  // Service
-  m_triforce->SetControlExpression(2, "`3`");  // Coin
+  m_triforce->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +
+                                          "/Xbox One Game Controller:View`");    // Test → View (back)
+  m_triforce->SetControlExpression(1, "`WGInput/" + std::to_string(m_index) +
+                                          "/Xbox One Game Controller:Bumper L`"); // Service → LB
+  m_triforce->SetControlExpression(2, "`WGInput/" + std::to_string(m_index) +
+                                          "/Xbox One Game Controller:Thumb L`");  // Coin → LS click
 
   // C Stick
   m_c_stick->SetControlExpression(0, "`WGInput/" + std::to_string(m_index) +

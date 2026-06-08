@@ -475,8 +475,8 @@ void Init()
 
   if (!File::Exists(sega_boot_filename))
   {
-    PanicAlertFmt("Failed to open segaboot.gcm({}), which is required for test menus.",
-                  sega_boot_filename.c_str());
+    WARN_LOG_FMT(DVDINTERFACE, "segaboot.gcm not found at {} — test menu will be unavailable",
+                 sega_boot_filename);
     return;
   }
 

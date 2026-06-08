@@ -1427,7 +1427,9 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
                 else
                 {
-                  PanicAlertFmt("Test menu is disabled due to missing SegaBoot");
+                  WARN_LOG_FMT(SERIALINTERFACE,
+                               "Test button pressed but SegaBoot not loaded — test menu unavailable");
+                  message.AddData((u32)0x00);
                 }
               }
               else
