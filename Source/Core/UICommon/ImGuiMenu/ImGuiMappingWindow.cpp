@@ -502,6 +502,7 @@ void ImGuiMappingWindow::Draw(int port, UIState* state)
         renderGroupUI(findGroup("C-Stick"));
         renderGroupUI(findGroup("Triggers"));
         renderGroupUI(findGroup("D-Pad"));
+        renderGroupUI(findGroup("Triforce"));
         ImGui::EndChild();
         ImGui::EndTabItem();
       }

@@ -50,7 +50,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
 {
   if (m_pointer + len >= sizeof(m_message))
   {
-    PanicAlertFmt("JVSIOMessage overrun!");
+    WARN_LOG_FMT(SERIALINTERFACE, "JVSIOMessage overrun!");
     return;
   }
 
@@ -61,7 +61,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
     {
       if (m_pointer + 2 > sizeof(m_message))
       {
-        PanicAlertFmt("JVSIOMessage overrun!");
+        WARN_LOG_FMT(SERIALINTERFACE, "JVSIOMessage overrun!");
         break;
       }
       m_message[m_pointer++] = 0xD0;
@@ -71,7 +71,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
     {
       if (m_pointer >= sizeof(m_message))
       {
-        PanicAlertFmt("JVSIOMessage overrun!");
+        WARN_LOG_FMT(SERIALINTERFACE, "JVSIOMessage overrun!");
         break;
       }
       m_message[m_pointer++] = c;
@@ -109,7 +109,7 @@ void JVSIOMessage::End()
   }
   else
   {
-    PanicAlertFmt("JVSIOMessage: Not enough space for checksum!");
+    WARN_LOG_FMT(SERIALINTERFACE, "JVSIOMessage: Not enough space for checksum!");
   }
 }
 
@@ -2079,7 +2079,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
     default:
     {
       ERROR_LOG_FMT(SERIALINTERFACE, "Unknown SI command (0x{:08x})", (u32)bb_command);
-      PanicAlertFmt("SI: Unknown command");
+      WARN_LOG_FMT(SERIALINTERFACE, "SI: Unknown command (0x{:08x})", (u32)bb_command);
       buffer_position = buffer_length;
     }
     break;
@@ -2237,7 +2237,7 @@ void CSIDevice_AMBaseboard::SendCommand(u32 command, u8 poll)
   {
     // Costis sent 0x00 in some demos :)
     ERROR_LOG_FMT(SERIALINTERFACE, "Unknown direct command     ({:#x})", command);
-    PanicAlertFmt("SI: Unknown direct command");
+    WARN_LOG_FMT(SERIALINTERFACE, "SI: Unknown direct command ({:#x})", command);
   }
 }
 

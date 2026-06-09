@@ -460,15 +460,15 @@ void Init()
   s_backup = OpenOrCreateFile(base_path + "backup_" + SConfig::GetInstance().GetGameID() + ".bin");
 
   if (!s_netcfg.IsOpen())
-    PanicAlertFmt("Failed to open/create: {}", base_path + "trinetcfg.bin");
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to open/create: {}", base_path + "trinetcfg.bin");
   if (!s_netctrl.IsOpen())
-    PanicAlertFmt("Failed to open/create: {}", base_path + "trinetctrl.bin");
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to open/create: {}", base_path + "trinetctrl.bin");
   if (!s_extra.IsOpen())
-    PanicAlertFmt("Failed to open/create: {}", base_path + "triextra.bin");
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to open/create: {}", base_path + "triextra.bin");
   if (!s_dimm.IsOpen())
-    PanicAlertFmt("Failed to open/create: {}", base_path + "tridimm.bin");
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to open/create: {}", base_path + "tridimm.bin");
   if (!s_backup.IsOpen())
-    PanicAlertFmt("Failed to open/create: {}", base_path + "backup.bin");
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to open/create: {}", base_path + "backup.bin");
 
   // This is the firmware for the Triforce
   const std::string sega_boot_filename = base_path + "segaboot.gcm";
@@ -483,7 +483,7 @@ void Init()
   File::IOFile sega_boot(sega_boot_filename, "rb+");
   if (!sega_boot.IsOpen())
   {
-    PanicAlertFmt("Failed to read: {}", sega_boot_filename);
+    WARN_LOG_FMT(AMMEDIABOARD, "Failed to read: {} — test menu unavailable", sega_boot_filename);
     return;
   }
 
@@ -1413,7 +1413,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         break;
       default:
         PrintMBBuffer(address, length);
-        PanicAlertFmtT("Unhandled Media Board Read: offset={0:08x} length={0:08x}", offset, length);
+        WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Read: offset={:08x} length={:08x}", offset, length);
         break;
       }
       return 0;
@@ -1669,7 +1669,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     // Max GC disc offset
     if (offset >= 0x57058000)
     {
-      PanicAlertFmtT("Unhandled Media Board Read: offset={0:08x} length={0:08x}", offset, length);
+      WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Read: offset={:08x} length={:08x}", offset, length);
       return 0;
     }
 
@@ -1827,7 +1827,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
           s_media_buffer[4] = 1;
           break;
         default:
-          PanicAlertFmtT("Unhandled Media Board Command:{0:04x}", static_cast<u16>(ammb_command));
+          WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Command:{:04x}", static_cast<u16>(ammb_command));
           break;
         }
 
@@ -1855,7 +1855,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     if (offset >= 0x57058000)
     {
       PrintMBBuffer(address, length);
-      PanicAlertFmtT("Unhandled Media Board Write: offset={0:08x} length={0:08x}", offset, length);
+      WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Write: offset={:08x} length={:08x}", offset, length);
     }
     break;
   case AMMBDICommand::Execute:
@@ -2044,11 +2044,11 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
       return 0;
     }
 
-    PanicAlertFmtT("Unhandled Media Board Execute:{0:04x}", static_cast<u16>(ammb_command));
+    WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Execute:{:04x}", static_cast<u16>(ammb_command));
     break;
   }
   default:
-    PanicAlertFmtT("Unhandled Media Board Command:{0:02x}", command);
+    WARN_LOG_FMT(AMMEDIABOARD, "Unhandled Media Board Command:{:02x}", command);
     break;
   }
 
@@ -2096,7 +2096,7 @@ u32 GetGameType()
     return it->second;
   }
 
-  PanicAlertFmtT("Unknown game ID:{0:08x}, using default controls.", triforce_id);
+  WARN_LOG_FMT(AMMEDIABOARD, "Unknown game ID:{:08x}, using default controls.", triforce_id);
   return VirtuaStriker3;  // Fallback
 }
 

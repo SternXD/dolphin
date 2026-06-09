@@ -4,7 +4,7 @@ All changes relative to SternXD/dolphin `master` (v1.1.9.0 baseline).
 
 ---
 
-## [1.1.9.1-triforce] — 2026-06-08
+## [1.1.9.1-triforce] — 2026-06-09 (rev 2)
 
 ### Summary
 
@@ -76,25 +76,69 @@ Inside the `#if WINRT_XBOX` block, the Triforce button assignments previously ha
 
 | Triforce input | Before | After (Xbox) |
 |----------------|--------|--------------|
-| Test | `` `1` `` | `View` (back/select button) |
+| Test | `` `1` `` | `Thumb R` (right stick click / RS) |
 | Service | `` `2` `` | `Bumper L` (left bumper / LB) |
 | Coin | `` `3` `` | `Thumb L` (left stick click / LS) |
 
-These three buttons were the only unmapped inputs available; all gameplay-relevant buttons (A/B/X/Y, RB, Menu/Start, D-pad, triggers, sticks, rumble) were already assigned.
+`Thumb R` was chosen for Test after confirming `View` (back button) does not reliably pass through to the app on Xbox. Service (LB) and Coin (LS click) were confirmed working on Virtua Striker 2002. All other buttons (A/B/X/Y, RB, Menu/Start, D-pad, triggers, right stick axes, rumble) are used for gameplay.
 
 ---
 
-### SegaBoot PanicAlert softening
+### PanicAlert removal (`AMMediaboard.cpp`, `SI_DeviceAMBaseboard.cpp`)
 
-`segaboot.gcm` is the Sega Triforce firmware updater image. Without it, pressing the Test button or calling `InitTestMenu()` previously fired a blocking `PanicAlertFmt` dialog — fatal on Xbox where there is no keyboard/mouse to dismiss it.
+On Xbox there is no keyboard or mouse to dismiss blocking `PanicAlertFmt` dialogs — they hang the app permanently. All `PanicAlertFmt`/`PanicAlertFmtT` calls in the two Triforce files were converted to `WARN_LOG_FMT`.
 
-#### `Source/Core/Core/HW/SI/SI_DeviceAMBaseboard.cpp`
+#### `Source/Core/Core/HW/DVD/AMMediaboard.cpp` — 9 alerts removed
 
-- **Test button without SegaBoot**: Changed `PanicAlertFmt("Test menu is disabled due to missing SegaBoot")` to `WARN_LOG_FMT(SERIALINTERFACE, ...)`. The JVS message now sends `0x00` (no test signal) rather than crashing.
+| Was | Now |
+|-----|-----|
+| `PanicAlertFmt("Failed to open/create: trinetcfg.bin")` etc. (5×) | `WARN_LOG_FMT(AMMEDIABOARD, ...)` |
+| `PanicAlertFmt("Failed to read: segaboot.gcm")` | `WARN_LOG_FMT(AMMEDIABOARD, ...)` |
+| `PanicAlertFmtT("Unhandled Media Board Read: ...")` (2×) | `WARN_LOG_FMT(AMMEDIABOARD, ...)` |
+| `PanicAlertFmtT("Unhandled Media Board Command/Write/Execute: ...")` (4×) | `WARN_LOG_FMT(AMMEDIABOARD, ...)` |
+| `PanicAlertFmtT("Unknown game ID: ...")` | `WARN_LOG_FMT(AMMEDIABOARD, ...)` |
 
-#### `Source/Core/Core/HW/DVD/AMMediaboard.cpp`
+The "Unhandled" alerts are development-mode guards that fire on code paths encountered during normal VS4 boot, making them the most likely crash cause for games that work on PC but not on Xbox.
 
-- **`InitTestMenu()` missing segaboot.gcm**: Changed `PanicAlertFmt("Failed to open segaboot.gcm...")` to `WARN_LOG_FMT(DVDINTERFACE, ...)` and early-returns. Test menu is silently unavailable rather than crashing.
+#### `Source/Core/Core/HW/SI/SI_DeviceAMBaseboard.cpp` — 6 alerts removed
+
+| Was | Now |
+|-----|-----|
+| `PanicAlertFmt("JVSIOMessage overrun!")` (3×) | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
+| `PanicAlertFmt("JVSIOMessage: Not enough space for checksum!")` | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
+| `PanicAlertFmt("SI: Unknown command")` | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
+| `PanicAlertFmt("SI: Unknown direct command")` | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
+
+### segaboot.gcm deployment
+
+`segaboot.gcm` (Sega Triforce firmware updater, ~2 MB) must be placed at:
+
+```
+LocalState\Triforce\segaboot.gcm
+```
+
+on the Xbox. Upload via Xbox Device Portal file manager API:
+
+```bash
+curl -sk --tlsv1.3 -X POST \
+  "https://<xbox-ip>:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=<pkg>&path=\LocalState\Triforce" \
+  -H "X-CSRF-Token: $CSRF" -H "Cookie: CSRF-Token=$CSRF" \
+  -F "segaboot.gcm=@segaboot.gcm;type=application/octet-stream"
+```
+
+Without this file the test menu is unavailable but the game continues running (no crash).
+
+### Triforce button mapping UI (`Source/Core/UICommon/ImGuiMenu/ImGuiMappingWindow.cpp`)
+
+The Xbox ImGui controller mapping dialog previously rendered only: Buttons, Main Stick, C-Stick, Triggers, D-Pad. The Triforce group (`m_triforce` — Test/Service/Coin) was defined but not exposed.
+
+Added one line to the GameCube tab render block:
+
+```cpp
+renderGroupUI(findGroup("Triforce"));
+```
+
+The Triforce section now appears at the bottom of the controller mapping dialog, matching the Android Dolphin UI. Users can remap Test/Service/Coin to any controller input at runtime without a rebuild.
 
 ---
 
@@ -113,4 +157,4 @@ Packages are deployed via the Xbox Device Portal (WDP) REST API over HTTPS on po
 
 ### Result
 
-Triforce games boot on Xbox Series X and reach the Triforce startup screen. The `View` button (back) enters the test/service menu when `segaboot.gcm` is present; without it the screen is unchanged rather than crashing. `Bumper L` (LB) and `Thumb L` (LS) handle service and coin inputs respectively.
+Virtua Striker 2002 boots and runs on Xbox Series X. Coin insert (LS click) and Service (LB) are confirmed working. Test menu entry (RS click) requires `segaboot.gcm` to be present in `LocalState\Triforce\`. Triforce button assignments are now remappable at runtime via Settings → Controls → GameCube → Map → Triforce section.
