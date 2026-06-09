@@ -4,11 +4,11 @@ All changes relative to SternXD/dolphin `master` (v1.1.9.0 baseline).
 
 ---
 
-## [1.1.9.1-triforce] — 2026-06-09 (rev 2)
+## [1.1.9.1-triforce] — 2026-06-09 (rev 3)
 
 ### Summary
 
-65 Triforce cherry-picks from upstream dolphin-emu were applied to the `uwp-triforce` branch on top of SternXD `master`. The result boots Triforce arcade games on Xbox Series X in Developer Mode.
+65 Triforce cherry-picks from upstream dolphin-emu were applied to the `uwp-triforce` branch on top of SternXD `master`. The result boots Triforce arcade games on Xbox Series X in Developer Mode. Virtua Striker 2002 and Virtua Striker 4 Ver.2006 are confirmed working.
 
 ---
 
@@ -109,24 +109,51 @@ The "Unhandled" alerts are development-mode guards that fire on code paths encou
 | `PanicAlertFmt("SI: Unknown command")` | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
 | `PanicAlertFmt("SI: Unknown direct command")` | `WARN_LOG_FMT(SERIALINTERFACE, ...)` |
 
-### segaboot.gcm deployment
+### Triforce data files — required for VS4
 
-`segaboot.gcm` (Sega Triforce firmware updater, ~2 MB) must be placed at:
+VS4 Ver.2006 requires **MAIN BOOT firmware version 2.17+** and a pre-initialized DIMM state. Using a generic `segaboot.gcm` (e.g. from retrobios) causes a permanent "WARNING: BOOT/FIRM VERSION DOES NOT FULFILL THE GAME SPEC / PLEASE ENTER GAME TEST AND UPDATE" block on every boot because it carries an older firmware version that doesn't satisfy VS4's requirement.
 
-```
-LocalState\Triforce\segaboot.gcm
-```
+**The correct set of files comes from a working Dolphin Triforce session** (e.g. the Android build) where VS4 has already completed its SYSTEM UPDATE. Copy the entire `Triforce/` user data folder from that session:
 
-on the Xbox. Upload via Xbox Device Portal file manager API:
+| File | Purpose |
+|------|---------|
+| `segaboot.gcm` | Sega Triforce firmware — must be version 2.17+ for VS4 |
+| `tridimm_GLLP6E.bin` | DIMM state for VS4 Ver.2006 — contains the completed firmware update result; without this VS4 prompts for SYSTEM UPDATE on every boot |
+| `tribackup_GLLP6E.bin` | VS4 backup/NVRAM save |
+| `trinetcfg.bin` / `trinetctrl.bin` / `triextra.bin` | Network and extra config — can be empty (0 bytes) |
+
+Upload all files to the Dolphin `Triforce/` user data directory via Xbox Device Portal:
 
 ```bash
-curl -sk --tlsv1.3 -X POST \
-  "https://<xbox-ip>:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=<pkg>&path=\LocalState\Triforce" \
-  -H "X-CSRF-Token: $CSRF" -H "Cookie: CSRF-Token=$CSRF" \
-  -F "segaboot.gcm=@segaboot.gcm;type=application/octet-stream"
+for FILE in /path/to/triforce/*; do
+  FNAME=$(basename "$FILE")
+  curl -sk --tlsv1.3 -X POST \
+    "https://<xbox-ip>:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=<pkg>&path=\LocalState\Triforce" \
+    -H "X-CSRF-Token: $CSRF" -H "Cookie: CSRF-Token=$CSRF" \
+    -F "$FNAME=@$FILE;type=application/octet-stream"
+done
 ```
 
-Without this file the test menu is unavailable but the game continues running (no crash).
+### Dolphin user directory (Xbox) — `user.txt`
+
+The Dolphin WinRT app resolves its user data path at startup via `UWP::GetUserLocation()`:
+
+1. Reads `LocalState/user.txt`
+2. If present, uses its content as the user directory path
+3. If absent, defaults to `LocalState/`
+
+The user directory determines where `Config/`, `Triforce/`, `GC/`, etc. are stored. WDP's file manager API (`knownfolderid=LocalAppData`) can only write to `LocalState/` — it cannot write to arbitrary drive paths (e.g. `E:\`). If `user.txt` points to an external drive, upload the Triforce files there via another method, or redirect `user.txt` to LocalState:
+
+```bash
+# Redirect user dir back to LocalState (full Q:\ path required)
+printf 'Q:\\Users\\UserMgr4\\AppData\\Local\\Packages\\<pkg-no-version>\\LocalState' > user.txt
+curl -sk --tlsv1.3 -X POST \
+  "https://<xbox-ip>:11443/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=<pkg>&path=\LocalState" \
+  -H "X-CSRF-Token: $CSRF" -H "Cookie: CSRF-Token=$CSRF" \
+  -F "user.txt=@user.txt;type=application/octet-stream"
+```
+
+`ISOPath0` in `LocalState\Config\Dolphin.ini` still points to `E:\GC\Triforce` so the game library is unaffected.
 
 ### Triforce button mapping UI (`Source/Core/UICommon/ImGuiMenu/ImGuiMappingWindow.cpp`)
 
@@ -157,4 +184,12 @@ Packages are deployed via the Xbox Device Portal (WDP) REST API over HTTPS on po
 
 ### Result
 
-Virtua Striker 2002 boots and runs on Xbox Series X. Coin insert (LS click) and Service (LB) are confirmed working. Test menu entry (RS click) requires `segaboot.gcm` to be present in `LocalState\Triforce\`. Triforce button assignments are now remappable at runtime via Settings → Controls → GameCube → Map → Triforce section.
+**Virtua Striker 2002** and **Virtua Striker 4 Ver.2006** both boot and run on Xbox Series X in Developer Mode.
+
+| Control | Xbox button |
+|---------|------------|
+| Coin insert | LS click (left stick click) |
+| Service | LB |
+| Test / enter test menu | RS click (right stick click) |
+
+Triforce button assignments are remappable at runtime via Settings → Controls → GameCube → Map → Triforce section. Test menu requires `segaboot.gcm` and a pre-initialized `tridimm_<gameid>.bin` in the Triforce user data directory.
